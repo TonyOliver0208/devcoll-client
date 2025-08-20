@@ -1,3 +1,5 @@
+"use client";
+
 import WelcomeSection from "@/components/welcome/WelcomeSection";
 import SuggestedDevelopers from "@/components/developers/SuggestedDevelopers";
 import RightSidebar from "@/components/navigation/RightSidebar";
