@@ -8,7 +8,7 @@ function Login() {
         className="absolute inset-0 bg-cover bg-center"
         style={{
           backgroundImage:
-            "url(https://static.canva.com/web/images/543d7829999d351b301ced5ed3c1f087.jpg)",
+            "url('https://img.freepik.com/free-photo/laptop-with-glowing-screen-coding-night_1232-12323.jpg')",
         }}
       />
       <div
@@ -20,8 +20,8 @@ function Login() {
       />
       <div className="absolute top-4 left-4 z-10">
         <Image
-          src="https://static.canva.com/web/images/856bac30504ecac8dbd38dbee61de1f1.svg"
-          alt="canva"
+          src="https://res.cloudinary.com/da2j53n0s/image/upload/v1755807395/devcoll-logo_jj9yfo.png"
+          alt="DevColl"
           width={90}
           height={30}
           priority
