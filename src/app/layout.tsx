@@ -28,20 +28,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* <Header />
-        <div className="min-h-screen">
-          <aside className="fixed left-0 top-14 h-[calc(100vh-3.5rem)] w-64 border-r border-gray-200 bg-white">
-            <Sidebar />
-          </aside>
-
-          <div className="pl-64">
-            <div className="border-b border-gray-200">
-              <div className="max-w-[1800px] mx-auto px-8 py-15">
-                {children}
-              </div>
-            </div>
-          </div>
-        </div> */}
         <NextAuthProvider>{children}</NextAuthProvider>
       </body>
     </html>

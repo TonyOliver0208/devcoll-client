@@ -12,7 +12,6 @@ export const config = {
     '/',
     '/profile/:path*',
     '/settings/:path*',
-    '/dashboard/:path*',
     '/login',
     '/register',
     '/forgot-password'
