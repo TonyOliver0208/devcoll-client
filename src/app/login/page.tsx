@@ -1,5 +1,8 @@
+"use client";
+
 import LoginCard from "@/components/login/login-card";
 import Image from "next/image";
+import Link from "next/link";
 
 function Login() {
   return (
@@ -8,7 +11,7 @@ function Login() {
         className="absolute inset-0 bg-cover bg-center"
         style={{
           backgroundImage:
-            "url('https://img.freepik.com/free-photo/laptop-with-glowing-screen-coding-night_1232-12323.jpg')",
+            "url('https://www.featurebase.app/images/redesign2/community.jpg')",
         }}
       />
       <div
@@ -19,13 +22,19 @@ function Login() {
         }}
       />
       <div className="absolute top-4 left-4 z-10">
-        <Image
-          src="https://res.cloudinary.com/da2j53n0s/image/upload/v1755807395/devcoll-logo_jj9yfo.png"
-          alt="DevColl"
-          width={90}
-          height={30}
-          priority
-        />
+        <Link
+          href="/"
+          className="block transform transition-transform duration-100 hover:opacity-80 active:scale-95"
+        >
+          <Image
+            src="https://res.cloudinary.com/da2j53n0s/image/upload/v1755887393/devColl-logo_2_aakdov.png"
+            alt="DevColl"
+            width={90}
+            height={30}
+            priority
+            className="cursor-pointer"
+          />
+        </Link>
       </div>
       <div className="relative z-10 flex items-center justify-center min-h-screen">
         <LoginCard />

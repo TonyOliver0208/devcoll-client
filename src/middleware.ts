@@ -9,8 +9,12 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/",
-    ...routeConfig.auth.paths.map(path => `${path}/:path*`),
-    ...Object.values(routeConfig.special)
+    '/',
+    '/profile/:path*',
+    '/settings/:path*',
+    '/dashboard/:path*',
+    '/login',
+    '/register',
+    '/forgot-password'
   ]
 };
