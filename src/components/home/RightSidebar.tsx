@@ -30,9 +30,9 @@ const RightSidebar = () => {
   ];
 
   return (
-    <div className="p-4 space-y-6">
+    <div className=" space-y-2">
       {/* Trending Tags */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white p-4 rounded-sm border border-gray-250">
         <h2 className="text-lg font-semibold mb-4">Trending Tags</h2>
         <div className="space-y-2">
           {trendingTags.map((tag) => (
@@ -48,7 +48,7 @@ const RightSidebar = () => {
       </div>
 
       {/* Featured Meta */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white p-4 rounded-sm border border-gray-250">
         <h2 className="text-lg font-semibold mb-4">Featured on Meta</h2>
         <div className="space-y-4">
           {featuredMeta.map((item) => (
@@ -63,7 +63,7 @@ const RightSidebar = () => {
       </div>
 
       {/* Hot Meta Posts */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
+      <div className="bg-white p-4 rounded-sm border border-gray-250">
         <h2 className="text-lg font-semibold mb-4">Hot Meta Posts</h2>
         <div className="space-y-4">
           {hotMetaPosts.map((post) => (

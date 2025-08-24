@@ -1,82 +1,3 @@
-// import Image from "next/image";
-// import Link from "next/link";
-// import { Search } from "lucide-react";
-
-// const Header = () => {
-//   return (
-//     <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-50 shadow-sm">
-//       <div className="flex items-center justify-between h-full px-4 max-w-[1800px] mx-auto">
-//         {/* Left Section */}
-//         <div className="flex items-center gap-8">
-//           <Link href="/" className="flex items-center gap-2">
-//             <Image
-//               src="/next.svg"
-//               alt="Logo"
-//               width={32}
-//               height={32}
-//               className="w-8"
-//             />
-//             <span className="font-semibold text-l">DevColl</span>
-//           </Link>
-//           <nav className="flex items-center gap-6">
-//             <Link
-//               href="/"
-//               className="text-gray-700 hover:text-gray-900 text-sm"
-//             >
-//               Home
-//             </Link>
-//             <Link
-//               href="/board"
-//               className="text-gray-700 hover:text-gray-900 text-sm"
-//             >
-//               Board
-//             </Link>
-//             <Link
-//               href="/live-code"
-//               className="text-gray-700 hover:text-gray-900 text-sm"
-//             >
-//               Live Code
-//             </Link>
-//             <Link
-//               href="/store"
-//               className="text-gray-700 hover:text-gray-900 text-sm"
-//             >
-//               Store
-//             </Link>
-//           </nav>
-//         </div>
-
-//         {/* Center Section - Search */}
-//         <div className="flex-1 max-w-2xl px-4">
-//           <div className="relative group">
-//             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-//             <input
-//               type="text"
-//               placeholder="Search posts, developers, or tags"
-//               className="w-full px-10 py-1 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-//             />
-//           </div>
-//         </div>
-
-//         {/* Right Section */}
-//         <div className="flex items-center gap-4">
-//           <div className="px-3 py-0.5 bg-gradient-to-r from-amber-400 to-amber-500 text-white rounded-full text-sm font-medium">
-//             Premium
-//           </div>
-//           <button className="px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
-//             Sign in
-//           </button>
-//           <button className="px-4 py-1.5 text-sm text-white bg-[#FFA116] hover:bg-[#F28C01] rounded-lg">
-//             Register
-//           </button>
-//         </div>
-//       </div>
-//     </header>
-//   );
-// };
-
-// export default Header;
-
 import Link from "next/link";
 import {
   Search,
@@ -86,6 +7,8 @@ import {
   Trophy,
   MessageSquare,
   User,
+  ChevronDown,
+  ArrowLeft,
 } from "lucide-react";
 
 interface HeaderProps {
@@ -95,12 +18,14 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
   return (
-    <header className="bg-white border-b border-gray-300 sticky top-0 z-50">
-      <div className="max-w-full px-4">
-        <div className="flex items-center h-12">
-          <MobileMenuButton onClick={onMenuClick} isOpen={isSidebarOpen} />
-          <Logo />
-          <Navigation />
+    <header className="bg-white border-b border-gray-300 sticky top-0 z-50 w-full">
+      <div className="w-full px-4">
+        <div className="max-w-7xl mx-auto flex items-center h-[50px]">
+          <div className="flex items-center">
+            <MobileMenuButton onClick={onMenuClick} isOpen={isSidebarOpen} />
+            <Logo />
+            <Navigation />
+          </div>
           <SearchBar />
           <UserActions />
         </div>
@@ -117,17 +42,23 @@ function MobileMenuButton({
   isOpen: boolean;
 }) {
   return (
-    <button onClick={onClick} className="lg:hidden p-2 mr-2">
-      {isOpen ? <X size={20} /> : <Menu size={20} />}
+    <button
+      onClick={onClick}
+      className="lg:hidden p-2 mr-2 hover:bg-gray-100 rounded"
+    >
+      {isOpen ? <X size={18} /> : <Menu size={18} />}
     </button>
   );
 }
 
 function Logo() {
   return (
-    <Link href="/" className="flex items-center mr-8">
-      <div className="text-orange-500 font-bold text-xl">
-        stack<span className="text-gray-800">overflow</span>
+    <Link
+      href="/"
+      className="flex items-center mr-6 hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+    >
+      <div className="text-[#F48024] font-bold text-base">
+        stack<span className="text-gray-700">overflow</span>
       </div>
     </Link>
   );
@@ -135,9 +66,22 @@ function Logo() {
 
 function Navigation() {
   return (
-    <nav className="hidden md:flex items-center space-x-4 mr-8">
-      <button className="text-gray-700 hover:text-gray-900 px-3 py-2">
-        Products
+    <nav className="hidden md:flex items-center mr-6">
+      <Link
+        href="/"
+        className="flex items-center px-3 py-4 text-sm text-gray-700 hover:bg-gray-100 rounded border-b-2 border-[#F48024] bg-orange-50"
+      >
+        Home
+      </Link>
+      <button className="flex items-center px-3 py-4 text-sm text-gray-600 hover:bg-gray-100 rounded">
+        Board
+      </button>
+      <button className="flex items-center px-3 py-4 text-sm text-gray-600 hover:bg-gray-100 rounded">
+        Live Code
+      </button>
+      <button className="flex items-center px-3 py-4 text-sm text-gray-600 hover:bg-gray-100 rounded gap-1">
+        Store
+        <ChevronDown size={14} />
       </button>
     </nav>
   );
@@ -145,16 +89,13 @@ function Navigation() {
 
 function SearchBar() {
   return (
-    <div className="flex-1 max-w-2xl mx-4">
-      <div className="relative">
-        <Search
-          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-          size={16}
-        />
+    <div className="flex-1 max-w-2xl px-4">
+      <div className="relative group">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
         <input
           type="text"
-          placeholder="Search..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-sm focus:outline-none focus:border-blue-500"
+          placeholder="Search posts, developers, or tags"
+          className="w-full px-10 py-1 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
     </div>
@@ -164,18 +105,23 @@ function SearchBar() {
 function UserActions() {
   return (
     <div className="flex items-center space-x-2">
-      <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
-        <Bell size={18} />
+      <button className="p-2 text-gray-500 hover:bg-gray-100 rounded transition-colors">
+        <Bell size={20} />
       </button>
-      <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
-        <Trophy size={18} />
+      <button className="p-2 text-gray-500 hover:bg-gray-100 rounded transition-colors">
+        <Trophy size={20} />
       </button>
-      <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
-        <MessageSquare size={18} />
+      <button className="p-2 text-gray-500 hover:bg-gray-100 rounded transition-colors">
+        <MessageSquare size={20} />
       </button>
-      <div className="flex items-center space-x-1 px-2 py-1 bg-gray-100 rounded">
-        <User size={16} className="text-gray-600" />
-        <span className="text-sm font-medium">P</span>
+      <div className="flex items-center space-x-2 ml-2">
+        <div className="w-6 h-6 bg-gray-300 rounded-sm flex items-center justify-center">
+          <User size={14} className="text-gray-600" />
+        </div>
+        <span className="text-sm font-medium text-gray-700">P</span>
+        <button className="px-3 py-1.5 bg-[#F48024] text-white text-xs font-medium rounded hover:bg-[#DA670B] transition-colors">
+          Premium
+        </button>
       </div>
     </div>
   );

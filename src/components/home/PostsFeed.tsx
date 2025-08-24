@@ -8,21 +8,20 @@ interface PostsFeedProps {
 export default function PostsFeed({ posts }: PostsFeedProps) {
   return (
     <div className="bg-white">
-      <PostsHeader />
       <PostsList posts={posts} />
     </div>
   );
 }
 
-function PostsHeader() {
+export function PostsHeader() {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-xl font-normal text-gray-800">
+    <div className="mb-4">
+      <h2 className="text-2xl font-bold text-gray-800">
         Interesting posts for you
       </h2>
       <div className="text-sm text-gray-500">
         Based on your viewing history and watched tags.{" "}
-        <Link href="#" className="text-blue-600">
+        <Link href="#" className="text-blue-600 hover:text-blue-800">
           Customize your feed
         </Link>
       </div>
@@ -32,7 +31,7 @@ function PostsHeader() {
 
 function PostsList({ posts }: { posts: Post[] }) {
   return (
-    <div className="space-y-0">
+    <div className="border border-gray-250 rounded">
       {posts.map((post, index) => (
         <PostItem
           key={post.id}
@@ -46,7 +45,11 @@ function PostsList({ posts }: { posts: Post[] }) {
 
 function PostItem({ post, showBorder }: { post: Post; showBorder: boolean }) {
   return (
-    <div className={`py-4 ${showBorder ? "border-b border-gray-200" : ""}`}>
+    <div
+      className={`px-4 py-4 ${
+        showBorder ? "border-b border-gray-250" : ""
+      } hover:bg-gray-50 transition-colors`}
+    >
       <div className="flex gap-6">
         <PostStats post={post} />
         <PostContent post={post} />
