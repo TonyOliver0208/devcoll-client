@@ -7,7 +7,7 @@ interface NavigationMenuProps {
 
 export default function NavigationMenu({ items }: NavigationMenuProps) {
   return (
-    <nav className="pl-3 ">
+    <nav className="pl-3">
       {items.map((item, index) => (
         <NavigationItem key={index} {...item} />
       ))}

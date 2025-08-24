@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 285 60" fill="none">
+  <!-- Arrow -->
+  <line stroke="#F48024" stroke-linecap="round" stroke-width="6" x1="5" x2="20" y1="25" y2="5"/>
+  <line stroke="#F48024" stroke-linecap="round" stroke-width="6" x1="5" x2="20" y1="25" y2="45"/>
+
+  <!-- Box with border radius -->
+  <rect 
+    fill="none" 
+    height="40" 
+    width="60" 
+    x="30" 
+    y="5" 
+    stroke="black" 
+    stroke-width="6" 
+    rx="5" ry="5"
+  />
+  
+  <!-- Box accent corner -->
+  <rect 
+    fill="#F48024" 
+    height="12" 
+    width="12" 
+    x="78" 
+    y="7" 
+    rx="3" ry="3"
+  />
+  
+  <!-- Connector -->
+  <line stroke="#F48024" stroke-linecap="round" stroke-width="6" x1="25" x2="70" y1="55" y2="55"/>
+  <line stroke="#F48024" stroke-linecap="round" stroke-width="6" x1="70" x2="95" y1="55" y2="55"/>
+  
+  <!-- Text -->
+  <text x="105" y="47" font-family="system-ui, -apple-system, sans-serif" font-size="52px" fill="#2D3748">
+    <tspan font-weight="normal">Dev</tspan><tspan font-weight="bold" fill="#F48024">Coll</tspan>
+  </text>
+</svg>

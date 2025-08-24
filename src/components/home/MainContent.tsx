@@ -14,17 +14,17 @@ export default function MainContent({ username }: MainContentProps) {
       <div className="py-6">
         <WelcomeSection username={username} />
 
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="px-4">
           <StatsCards />
 
           <PostsHeader />
 
           {/* Posts Feed and Right Sidebar */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-11 gap-6">
             <div className="xl:col-span-8">
               <PostsFeed posts={mockPosts} />
             </div>
-            <aside className="xl:col-span-4">
+            <aside className="xl:col-span-3">
               <RightSidebar />
             </aside>
           </div>

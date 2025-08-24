@@ -13,20 +13,23 @@ export default function HomePage() {
   const username = session?.user?.name || "Phước Long Nguyễn";
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       <Header onMenuClick={toggleSidebar} isSidebarOpen={isSidebarOpen} />
 
-      <div className="flex">
-        <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+      {/* Main Container with StackOverflow-like layout */}
+      <div className="max-w-7xl mx-auto bg-white min-h-screen">
+        <div className="flex">
+          <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
 
-        {isSidebarOpen && (
-          <div
-            className="fixed top-[50px] left-0 right-0 bottom-0 bg-black bg-opacity-20 z-30 lg:hidden"
-            onClick={closeSidebar}
-          />
-        )}
+          {isSidebarOpen && (
+            <div
+              className="fixed top-[50px] left-0 right-0 bottom-0 bg-black bg-opacity-20 z-30 lg:hidden"
+              onClick={closeSidebar}
+            />
+          )}
 
-        <MainContent username={username} />
+          <MainContent username={username} />
+        </div>
       </div>
     </div>
   );
