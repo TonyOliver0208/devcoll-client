@@ -1,5 +1,5 @@
 import WelcomeSection from "./WelcomeSection";
-import StatsCards from "./StatsCards";
+import SuggestedDevelopers from "./SuggestedDeveloper";
 import PostsFeed, { PostsHeader } from "./PostsFeed";
 import RightSidebar from "./RightSidebar";
 import { mockPosts } from "@/constants/mockData";
@@ -15,7 +15,7 @@ export default function MainContent({ username }: MainContentProps) {
         <WelcomeSection username={username} />
 
         <div className="px-4">
-          <StatsCards />
+          <SuggestedDevelopers />
 
           <PostsHeader />
 
