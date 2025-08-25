@@ -1,36 +1,25 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
-import MainContent from "@/components/home/MainContent";
-import { useSidebar } from "@/hooks/useSidebar";
+import AppLayout from "@/components/layout/AppLayout";
+import { QuestionsContainer } from "@/components/shared";
+import { mockQuestions } from "@/constants/questions";
 
 export default function HomePage() {
   const { data: session } = useSession();
-  const { isSidebarOpen, toggleSidebar, closeSidebar } = useSidebar();
-
   const username = session?.user?.name || "Phước Long Nguyễn";
 
   return (
-    <div className="min-h-screen">
-      <Header onMenuClick={toggleSidebar} isSidebarOpen={isSidebarOpen} />
-
-      {/* Main Container with StackOverflow-like layout */}
-      <div className="max-w-7xl mx-auto bg-white min-h-screen">
-        <div className="flex">
-          <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
-
-          {isSidebarOpen && (
-            <div
-              className="fixed top-[50px] left-0 right-0 bottom-0 bg-black bg-opacity-20 z-30 lg:hidden"
-              onClick={closeSidebar}
-            />
-          )}
-
-          <MainContent username={username} />
-        </div>
-      </div>
-    </div>
+    <AppLayout>
+      <QuestionsContainer 
+        questions={mockQuestions}
+        username={username}
+        showHeader={false}
+        showFilters={false}
+        showWelcome={true}
+        showSuggestedDevelopers={true}
+        showPostsHeader={true}
+      />
+    </AppLayout>
   );
 }
