@@ -16,7 +16,6 @@ export interface Post {
 export interface NavigationItem {
   icon: LucideIcon;
   label: string;
-  active?: boolean;
   href: string;
   badge?: string;
 }

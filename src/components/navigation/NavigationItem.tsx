@@ -1,10 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { LucideIcon } from "lucide-react";
 
 interface NavigationItemProps {
   icon: LucideIcon;
   label: string;
-  active?: boolean;
   href: string;
   badge?: string;
 }
@@ -12,15 +14,16 @@ interface NavigationItemProps {
 export default function NavigationItem({
   icon: Icon,
   label,
-  active,
   href,
   badge,
 }: NavigationItemProps) {
+  const pathname = usePathname();
+  const isActive = pathname === href;
   return (
     <Link
       href={href}
       className={`flex items-center justify-between px-3 py-2 text-sm rounded hover:bg-gray-100 ${
-        active
+        isActive
           ? "bg-orange-50 text-orange-600 border-r-4 border-orange-600"
           : "text-gray-700"
       }`}

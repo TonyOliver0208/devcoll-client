@@ -5,7 +5,7 @@ import {
 import { NavigationItem } from "@/types/homepage";
 
 export const sidebarItems: NavigationItem[] = [
-  { icon: Home, label: "Home", active: true, href: "/" },
+  { icon: Home, label: "Home", href: "/" },
   { icon: HelpCircle, label: "Questions", href: "/questions" },
   { icon: Tag, label: "Tags", href: "/tags" },
   { icon: Bookmark, label: "Saves", href: "/saves" },
