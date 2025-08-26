@@ -63,29 +63,40 @@ export function validateComment(content: string): CommentValidation {
  * NOTE: This is for preview only - backend does the authoritative processing
  */
 export function previewMarkdown(content: string): string {
-  if (!content) return '';
-  
-  // Escape HTML first to prevent XSS in preview
-  const escaped = content
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  if (!content) return "";
 
-  // Apply markdown formatting for preview
-  return escaped
-    // Bold: **text**
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
-    // Italic: _text_
-    .replace(/_(.*?)_/g, '<em class="italic">$1</em>')
-    // Inline code: `code`
-    .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">$1</code>')
-    // Links: [text](url) - but sanitize URLs in preview
-    .replace(/\[(.*?)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$1</a>')
-    // User mentions: @username
-    .replace(/@(\w+)/g, '<span class="text-blue-600 bg-blue-50 px-1 rounded">@$1</span>')
-    // Convert newlines to <br> for preview
-    .replace(/\n/g, '<br>');
+  // Step 1: Escape HTML characters, but preserve markdown characters
+  let result = content
+    .replace(/&(?![a-zA-Z0-9#]+;)/g, "&amp;") // Escape & not part of entities
+    .replace(/<(?!\/?[a-zA-Z])/g, "&lt;") // Escape < not part of tags
+    .replace(/>(?!\/?[a-zA-Z])/g, "&gt;"); // Escape > not part of tags
+
+  // Step 2: Handle mentions (@username)
+  result = result.replace(/@(\w+)/g, '<span class="text-blue-600 bg-blue-50 px-1 rounded">@$1</span>');
+
+  // Step 3: Handle inline code (`code`)
+  result = result.replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">$1</code>');
+
+  // Step 4: Handle bold (**text**)
+  result = result.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>');
+
+  // Step 5: Handle italic (_text_)
+  result = result.replace(/_([^_]+)_/g, '<em class="italic">$1</em>');
+
+  // Step 6: Handle markdown links [text](url)
+  result = result.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, 
+    '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Step 7: Handle bare URLs
+  result = result.replace(/(^|\s)(https?:\/\/[^\s<>"]+)/g, 
+    '$1<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$2</a>');
+
+  // Step 8: Handle newlines
+  result = result.replace(/\n/g, "<br>");
+
+  return result;
 }
+
 
 /**
  * FRONTEND: Validate markdown syntax and content
@@ -93,40 +104,42 @@ export function previewMarkdown(content: string): string {
  */
 export function validateMarkdown(content: string): { isValid: boolean; issues: string[] } {
   const issues: string[] = [];
-  
-  // Check for unclosed markdown syntax
+
+  // Check for unclosed bold
   const boldCount = (content.match(/\*\*/g) || []).length;
   if (boldCount % 2 !== 0) {
     issues.push('Unclosed **bold** formatting detected');
   }
-  
+
+  // Check for unclosed italic
   const italicCount = (content.match(/_/g) || []).length;
   if (italicCount % 2 !== 0) {
     issues.push('Unclosed _italic_ formatting detected');
   }
-  
+
+  // Check for unclosed code
   const codeCount = (content.match(/`/g) || []).length;
   if (codeCount % 2 !== 0) {
     issues.push('Unclosed `code` formatting detected');
   }
-  
+
   // Check for malformed links
   const malformedLinks = content.match(/\[[^\]]*\]\([^\)]*$/g);
   if (malformedLinks) {
     issues.push('Incomplete link formatting detected');
   }
-  
-  // Check for suspicious URLs (basic validation)
-  const links = content.match(/\[.*?\]\((.*?)\)/g);
+
+  // Check for invalid URLs in links
+  const links = content.match(/\[([^\]]+)\]\(([^)]+)\)/g);
   if (links) {
     links.forEach(link => {
-      const url = link.match(/\[.*?\]\((.*?)\)/)?.[1];
+      const url = link.match(/\[([^\]]+)\]\(([^)]+)\)/)?.[2];
       if (url && !url.match(/^https?:\/\//)) {
-        issues.push('Links must start with http:// or https://');
+        issues.push(`Invalid URL in link: ${url} (must start with http:// or https://)`);
       }
     });
   }
-  
+
   return {
     isValid: issues.length === 0,
     issues

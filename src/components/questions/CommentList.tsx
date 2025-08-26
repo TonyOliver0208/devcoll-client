@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import type { Comment } from "@/types/questions";
-import { validateComment, validateMarkdown, previewMarkdown, submitComment } from "@/lib/commentUtils";
+import {
+  validateComment,
+  validateMarkdown,
+  previewMarkdown,
+  submitComment,
+} from "@/lib/commentUtils";
 
 interface CommentListProps {
   comments: Comment[];
@@ -21,25 +26,25 @@ const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
   const handleAddComment = async () => {
     const validation = validateComment(newComment);
     if (!validation.isValid) {
-      console.error('Validation errors:', validation.errors);
+      console.error("Validation errors:", validation.errors);
       return;
     }
 
     setIsSubmitting(true);
     try {
       // For now, just simulate API call
-      const result = await submitComment(1, newComment, 'question'); // postId will come from props later
-      
+      const result = await submitComment(1, newComment, "question"); // postId will come from props later
+
       if (result.success) {
         console.log("Comment submitted successfully:", result.processedContent);
         setNewComment("");
         setShowAddComment(false);
         // In real app, you'd refresh the comments list or add the new comment to state
       } else {
-        console.error('Submit errors:', result.errors);
+        console.error("Submit errors:", result.errors);
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error("Unexpected error:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -52,7 +57,7 @@ const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
 
   if (comments.length === 0) {
     return (
-      <button 
+      <button
         onClick={() => setShowAddComment(!showAddComment)}
         className="text-blue-600 hover:text-blue-800 text-sm"
       >
@@ -75,7 +80,7 @@ const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
             onClick={() => setShowAll(true)}
             className="text-blue-600 hover:text-blue-800 text-sm font-medium pt-1"
           >
-            Show {hiddenCount} more comment{hiddenCount > 1 ? 's' : ''}
+            Show {hiddenCount} more comment{hiddenCount > 1 ? "s" : ""}
           </button>
         )}
 
@@ -91,7 +96,7 @@ const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
         {/* Add Comment Button */}
         <div className="pt-2 border-t border-gray-100">
           {!showAddComment ? (
-            <button 
+            <button
               onClick={() => setShowAddComment(true)}
               className="text-blue-600 hover:text-blue-800 text-sm"
             >
@@ -118,22 +123,18 @@ const CommentItem = ({ comment }: { comment: Comment }) => (
     <div className="flex-1 min-w-0">
       <div className="text-sm text-gray-800 leading-relaxed">
         <CommentContent content={comment.content} />
-        {' – '}
+        {" – "}
         <span className="text-blue-600 hover:text-blue-800 text-xs cursor-pointer">
           {comment.author.name}
         </span>
         <span className="text-gray-500 text-xs ml-1">
           {comment.author.reputation.toLocaleString()}
         </span>
-        <span className="text-gray-500 text-xs ml-2">
-          {comment.timeAgo}
-        </span>
+        <span className="text-gray-500 text-xs ml-2">{comment.timeAgo}</span>
       </div>
     </div>
     {comment.votes !== undefined && comment.votes > 0 && (
-      <div className="text-xs text-gray-500">
-        {comment.votes}
-      </div>
+      <div className="text-xs text-gray-500">{comment.votes}</div>
     )}
   </div>
 );
@@ -144,7 +145,7 @@ const AddCommentForm = ({
   setNewComment,
   onSubmit,
   onCancel,
-  isSubmitting = false
+  isSubmitting = false,
 }: {
   newComment: string;
   setNewComment: (value: string) => void;
@@ -168,7 +169,8 @@ const AddCommentForm = ({
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <p className="text-xs text-gray-700 mb-2">
-              Use comments to ask for more information or suggest improvements. Avoid answering questions in comments.
+              Use comments to ask for more information or suggest improvements.
+              Avoid answering questions in comments.
             </p>
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <span>Mini-Markdown:</span>
@@ -188,23 +190,58 @@ const AddCommentForm = ({
             Help
           </button>
         </div>
-        
+
         {/* Expanded help section */}
         {showHelp && (
           <div className="mt-3 pt-3 border-t border-blue-200">
             <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Comments are used to:</strong></p>
+              <p>
+                <strong>Comments are used to:</strong>
+              </p>
               <ul className="list-disc list-inside ml-2 space-y-0.5">
                 <li>Ask for clarification or more information</li>
                 <li>Point out problems in the post</li>
                 <li>Suggest improvements to the post</li>
               </ul>
-              <p className="mt-2"><strong>Comments should NOT be used to:</strong></p>
+              <p className="mt-2">
+                <strong>Comments should NOT be used to:</strong>
+              </p>
               <ul className="list-disc list-inside ml-2 space-y-0.5">
                 <li>Answer the question (use the answer form instead)</li>
                 <li>Leave "thank you" messages</li>
                 <li>Have extended discussions</li>
               </ul>
+              <p className="mt-2">
+                <strong>Formatting examples:</strong>
+              </p>
+              <div className="ml-2 space-y-1 font-mono text-xs bg-gray-50 p-2 rounded">
+                <div>
+                  <code>**bold text**</code> → <strong>bold text</strong>
+                </div>
+                <div>
+                  <code>_italic text_</code> → <em>italic text</em>
+                </div>
+                <div>
+                  <code>`inline code`</code> →{" "}
+                  <code className="bg-gray-100 px-1 rounded">inline code</code>
+                </div>
+                <div>
+                  <code>[link text](https://example.com)</code> →{" "}
+                  <span className="text-blue-600 underline">link text</span>
+                </div>
+                <div>
+                  <code>https://example.com</code> →{" "}
+                  <span className="text-blue-600 underline">
+                    https://example.com
+                  </span>
+                </div>
+                <div>
+                  <code>@username</code> →{" "}
+                  <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                    @username
+                  </span>
+                </div>
+              </div>
               <p className="mt-2">
                 <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
                   Learn more about comments...
@@ -214,7 +251,7 @@ const AddCommentForm = ({
           </div>
         )}
       </div>
-      
+
       {/* Comment textarea with improved validation */}
       <div className="relative">
         {!showPreview ? (
@@ -225,18 +262,18 @@ const AddCommentForm = ({
               placeholder="Use comments to ask for clarification..."
               className={`w-full border rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:border-blue-500 ${
                 hasAnyErrors
-                  ? 'border-red-300 focus:ring-red-500' 
-                  : isNearLimit && !isValid 
-                    ? 'border-orange-300 focus:ring-orange-500' 
-                    : isValid && !hasAnyErrors
-                      ? 'border-green-300 focus:ring-green-500' 
-                      : 'border-gray-300 focus:ring-blue-500'
+                  ? "border-red-300 focus:ring-red-500"
+                  : isNearLimit && !isValid
+                  ? "border-orange-300 focus:ring-orange-500"
+                  : isValid && !hasAnyErrors
+                  ? "border-green-300 focus:ring-green-500"
+                  : "border-gray-300 focus:ring-blue-500"
               }`}
               rows={2}
               maxLength={600} // StackOverflow comment limit
               disabled={isSubmitting}
             />
-            
+
             {/* Character counter in textarea */}
             <div className="absolute bottom-2 right-2 text-xs text-gray-400">
               {600 - newComment.length}
@@ -246,14 +283,14 @@ const AddCommentForm = ({
           /* Preview mode */
           <div className="w-full border border-gray-300 rounded p-2 text-sm min-h-[60px] bg-gray-50">
             <div className="text-xs text-gray-500 mb-1">Preview:</div>
-            <div 
+            <div
               className="text-gray-800 leading-relaxed"
               dangerouslySetInnerHTML={{ __html: previewMarkdown(newComment) }}
             />
           </div>
         )}
       </div>
-      
+
       {/* Validation messages */}
       {allErrors.length > 0 && (
         <div className="text-xs text-red-600">
@@ -262,7 +299,7 @@ const AddCommentForm = ({
           ))}
         </div>
       )}
-      
+
       {warnings.length > 0 && (
         <div className="text-xs text-orange-600">
           {warnings.map((warning, index) => (
@@ -270,46 +307,49 @@ const AddCommentForm = ({
           ))}
         </div>
       )}
-      
+
       {/* Enhanced validation and action area */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p className={`text-xs ${
-            hasAnyErrors
-              ? 'text-red-600'
-              : isNearLimit && !isValid 
-                ? 'text-orange-600' 
+          <p
+            className={`text-xs ${
+              hasAnyErrors
+                ? "text-red-600"
+                : isNearLimit && !isValid
+                ? "text-orange-600"
                 : isValid && !hasAnyErrors
-                  ? 'text-green-600' 
-                  : 'text-gray-500'
-          }`}>
-            {hasAnyErrors 
-              ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''} to fix`
-              : isValid 
-                ? `✓ Ready to post (${characterCount} characters)` 
-                : `Enter at least ${15 - characterCount} more characters`
-            }
+                ? "text-green-600"
+                : "text-gray-500"
+            }`}
+          >
+            {hasAnyErrors
+              ? `${allErrors.length} error${
+                  allErrors.length > 1 ? "s" : ""
+                } to fix`
+              : isValid
+              ? `✓ Ready to post (${characterCount} characters)`
+              : `Enter at least ${15 - characterCount} more characters`}
           </p>
-          
+
           {/* Preview toggle */}
           {newComment.trim().length > 0 && (
-            <button 
+            <button
               onClick={() => setShowPreview(!showPreview)}
               className="text-xs text-blue-600 hover:text-blue-800 ml-2"
               disabled={isSubmitting}
             >
-              {showPreview ? 'Edit' : 'Preview'}
+              {showPreview ? "Edit" : "Preview"}
             </button>
           )}
         </div>
-        
+
         <div className="flex gap-2">
           <button
             onClick={onSubmit}
             disabled={!isValid || hasAnyErrors || isSubmitting}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-sm transition-colors"
           >
-            {isSubmitting ? 'Adding...' : 'Add comment'}
+            {isSubmitting ? "Adding..." : "Add comment"}
           </button>
           <button
             onClick={onCancel}
@@ -326,40 +366,11 @@ const AddCommentForm = ({
 
 // Comment content parser component
 const CommentContent = ({ content }: { content: string }) => {
-  const parts = content.split(/(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/);
-  
   return (
-    <>
-      {parts.map((part, index) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={index}>{part.slice(2, -2)}</strong>;
-        }
-        if (part.startsWith('`') && part.endsWith('`')) {
-          return (
-            <code key={index} className="bg-gray-100 px-1 rounded text-xs">
-              {part.slice(1, -1)}
-            </code>
-          );
-        }
-        if (part.includes('](')) {
-          const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
-          if (linkMatch) {
-            return (
-              <a 
-                key={index} 
-                href={linkMatch[2]} 
-                className="text-blue-600 hover:text-blue-800"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {linkMatch[1]}
-              </a>
-            );
-          }
-        }
-        return part;
-      })}
-    </>
+    <span
+      className="text-gray-800 leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: previewMarkdown(content) }}
+    />
   );
 };
 
