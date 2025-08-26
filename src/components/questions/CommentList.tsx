@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Comment } from "@/types/questions";
-import { validateComment, previewMarkdown, submitComment } from "@/lib/commentUtils";
+import { validateComment, validateMarkdown, previewMarkdown, submitComment } from "@/lib/commentUtils";
 
 interface CommentListProps {
   comments: Comment[];
@@ -155,7 +155,10 @@ const AddCommentForm = ({
   const [showHelp, setShowHelp] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const validation = validateComment(newComment);
+  const markdownValidation = validateMarkdown(newComment);
   const { isValid, errors, warnings, characterCount } = validation;
+  const allErrors = [...errors, ...markdownValidation.issues];
+  const hasAnyErrors = allErrors.length > 0;
   const isNearLimit = characterCount >= 10 && characterCount < 15;
 
   return (
@@ -221,11 +224,11 @@ const AddCommentForm = ({
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Use comments to ask for clarification..."
               className={`w-full border rounded p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:border-blue-500 ${
-                errors.length > 0
+                hasAnyErrors
                   ? 'border-red-300 focus:ring-red-500' 
                   : isNearLimit && !isValid 
                     ? 'border-orange-300 focus:ring-orange-500' 
-                    : isValid 
+                    : isValid && !hasAnyErrors
                       ? 'border-green-300 focus:ring-green-500' 
                       : 'border-gray-300 focus:ring-blue-500'
               }`}
@@ -252,9 +255,9 @@ const AddCommentForm = ({
       </div>
       
       {/* Validation messages */}
-      {errors.length > 0 && (
+      {allErrors.length > 0 && (
         <div className="text-xs text-red-600">
-          {errors.map((error, index) => (
+          {allErrors.map((error, index) => (
             <div key={index}>• {error}</div>
           ))}
         </div>
@@ -272,16 +275,16 @@ const AddCommentForm = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <p className={`text-xs ${
-            errors.length > 0
+            hasAnyErrors
               ? 'text-red-600'
               : isNearLimit && !isValid 
                 ? 'text-orange-600' 
-                : isValid 
+                : isValid && !hasAnyErrors
                   ? 'text-green-600' 
                   : 'text-gray-500'
           }`}>
-            {errors.length > 0 
-              ? `${errors.length} error${errors.length > 1 ? 's' : ''} to fix`
+            {hasAnyErrors 
+              ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''} to fix`
               : isValid 
                 ? `✓ Ready to post (${characterCount} characters)` 
                 : `Enter at least ${15 - characterCount} more characters`
@@ -303,7 +306,7 @@ const AddCommentForm = ({
         <div className="flex gap-2">
           <button
             onClick={onSubmit}
-            disabled={!isValid || isSubmitting}
+            disabled={!isValid || hasAnyErrors || isSubmitting}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-sm transition-colors"
           >
             {isSubmitting ? 'Adding...' : 'Add comment'}
