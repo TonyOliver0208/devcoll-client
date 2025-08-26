@@ -16,16 +16,18 @@ export default function QuestionsHeader({
   showButton = true 
 }: QuestionsHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-3">
-        <HelpCircle className="w-8 h-8 text-blue-600" />
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-          <p className="text-gray-600 text-sm">{subtitle}</p>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-4 sm:gap-0">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <HelpCircle className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">{title}</h1>
+          <p className="text-gray-600 text-xs sm:text-sm">{subtitle}</p>
         </div>
       </div>
       {showButton && (
-        <Button className="bg-blue-600 hover:bg-blue-700">Ask Question</Button>
+        <Button className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-4 sm:px-6 self-start sm:self-auto">
+          Ask Question
+        </Button>
       )}
     </div>
   );
@@ -34,11 +36,11 @@ export default function QuestionsHeader({
 // Export a specific header for posts/questions feed like PostsHeader
 export function PostsQuestionsHeader() {
   return (
-    <div className="mb-4">
-      <h2 className="text-2xl font-bold text-gray-800">
+    <div className="mb-3 sm:mb-4">
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
         Interesting questions for you
       </h2>
-      <div className="text-sm text-gray-500">
+      <div className="text-xs sm:text-sm text-gray-500">
         Based on your viewing history and watched tags.{" "}
         <Link href="#" className="text-blue-600 hover:text-blue-800">
           Customize your feed

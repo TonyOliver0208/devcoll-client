@@ -18,7 +18,12 @@ export default function NavigationItem({
   badge,
 }: NavigationItemProps) {
   const pathname = usePathname();
-  const isActive = pathname === href;
+  
+  // Check for exact match or if we're on a sub-route
+  const isActive = pathname === href || 
+    (href === '/questions' && pathname.startsWith('/questions/')) ||
+    (href === '/' && pathname === '/');
+  
   return (
     <Link
       href={href}

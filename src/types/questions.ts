@@ -1,3 +1,27 @@
+export interface User {
+  name: string;
+  reputation: number;
+  avatar?: string;
+}
+
+export interface Comment {
+  id: number;
+  content: string;
+  author: User;
+  timeAgo: string;
+  votes?: number;
+}
+
+export interface Answer {
+  id: number;
+  votes: number;
+  content: string;
+  author: User;
+  timeAgo: string;
+  isAccepted: boolean;
+  comments?: Comment[];
+}
+
 export interface Question {
   id: number;
   title: string;
@@ -6,15 +30,13 @@ export interface Question {
   views: number;
   tags: string[];
   timeAgo: string;
-  author: {
-    name: string;
-    reputation: number;
-    avatar?: string;
-  };
+  author: User;
   hasAcceptedAnswer?: boolean;
   bountyAmount?: number;
   excerpt?: string;
   content?: string;
+  answers_data?: Answer[];
+  comments?: Comment[];
 }
 
 export interface QuestionFilter {
