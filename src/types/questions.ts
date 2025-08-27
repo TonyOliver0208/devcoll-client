@@ -1,7 +1,13 @@
 export interface User {
+  id: string;
   name: string;
   reputation: number;
   avatar?: string;
+  badges?: {
+    gold: number;
+    silver: number;
+    bronze: number;
+  };
 }
 
 export interface Comment {
@@ -20,6 +26,8 @@ export interface Answer {
   timeAgo: string;
   isAccepted: boolean;
   comments?: Comment[];
+  userVote?: 'up' | 'down' | null;
+  isBookmarked?: boolean;
 }
 
 export interface Question {
@@ -37,6 +45,8 @@ export interface Question {
   content?: string;
   answers_data?: Answer[];
   comments?: Comment[];
+  userVote?: 'up' | 'down' | null;
+  isBookmarked?: boolean;
 }
 
 export interface QuestionFilter {
