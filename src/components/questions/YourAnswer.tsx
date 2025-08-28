@@ -7,7 +7,7 @@ import TiptapEditor from "./TiptapEditor";
 
 interface YourAnswerProps {
   questionId: string;
-  onSubmit?: (content: string) => void;
+  onSubmit?: (content: any) => void; // Changed to any to support JSON
   isSubmitting?: boolean;
   className?: string;
 }
@@ -18,21 +18,33 @@ const YourAnswer = ({
   isSubmitting = false,
   className = "",
 }: YourAnswerProps) => {
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState<any>(null);
+  const [contentHtml, setContentHtml] = useState("");
   const [draftSaved, setDraftSaved] = useState(false);
 
   useEffect(() => {
     const savedDraft = localStorage.getItem(`draft_${questionId}`);
     if (savedDraft) {
-      setContent(savedDraft);
-      setDraftSaved(true);
+      try {
+        const parsedDraft = JSON.parse(savedDraft);
+        setContent(parsedDraft.json);
+        setContentHtml(parsedDraft.html || "");
+        setDraftSaved(true);
+      } catch (error) {
+        // Fallback for old text-based drafts
+        setContentHtml(savedDraft);
+        setDraftSaved(true);
+      }
     }
   }, [questionId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (content.trim()) {
-        localStorage.setItem(`draft_${questionId}`, content);
+      if (contentHtml.trim()) {
+        localStorage.setItem(`draft_${questionId}`, JSON.stringify({
+          json: content,
+          html: contentHtml
+        }));
         setDraftSaved(true);
       } else {
         localStorage.removeItem(`draft_${questionId}`);
@@ -41,14 +53,20 @@ const YourAnswer = ({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [content, questionId]);
+  }, [content, contentHtml, questionId]);
+
+  const handleEditorChange = (json: any, html?: string) => {
+    setContent(json);
+    if (html) setContentHtml(html);
+  };
 
   const handleSubmit = async () => {
-    if (!content.trim()) return;
+    if (!content || !contentHtml.trim()) return;
 
     try {
       await onSubmit?.(content);
-      setContent("");
+      setContent(null);
+      setContentHtml("");
       localStorage.removeItem(`draft_${questionId}`);
       setDraftSaved(false);
     } catch (error) {
@@ -57,12 +75,13 @@ const YourAnswer = ({
   };
 
   const handleDiscard = () => {
-    setContent("");
+    setContent(null);
+    setContentHtml("");
     localStorage.removeItem(`draft_${questionId}`);
     setDraftSaved(false);
   };
 
-  const isValid = content.trim().length >= 30;
+  const isValid = contentHtml.trim().length >= 30;
 
   return (
     <Card className={`mt-6 sm:mt-8 ${className}`}>
@@ -70,13 +89,13 @@ const YourAnswer = ({
         <h3 className="text-base sm:text-lg font-normal mb-4">Your Answer</h3>
 
         <TiptapEditor
-          value={content}
-          onChange={setContent}
+          value={contentHtml}
+          onChange={handleEditorChange}
           placeholder="Enter your answer here. Be specific and explain your reasoning. Include code examples if relevant."
           minHeight="min-h-48"
         />
 
-        {content.length > 0 && content.length < 30 && (
+        {contentHtml.length > 0 && contentHtml.length < 30 && (
           <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
             Please provide a more detailed answer (at least 30 characters).
           </div>
