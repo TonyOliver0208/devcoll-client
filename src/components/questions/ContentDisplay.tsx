@@ -1,11 +1,21 @@
 "use client";
 
+import TiptapContentRenderer from './TiptapContentRenderer';
+
 interface ContentDisplayProps {
-  content: string;
+  content?: string;
+  contentJson?: any; // Tiptap JSON format
   className?: string;
 }
 
-const ContentDisplay = ({ content, className = "" }: ContentDisplayProps) => {
+const ContentDisplay = ({ content, contentJson, className = "" }: ContentDisplayProps) => {
+  // If we have Tiptap JSON, use the new renderer
+  if (contentJson) {
+    return <TiptapContentRenderer content={contentJson} className={className} />;
+  }
+  
+  // Fallback to legacy markdown renderer for backwards compatibility
+  if (!content) return null;
   const renderMarkdown = (text: string) => {
     // Split content by code blocks first
     const parts = text.split(/(```[\s\S]*?```)/);

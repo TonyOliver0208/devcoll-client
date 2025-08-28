@@ -55,7 +55,7 @@ lowlight.register('html', html)
 
 interface TiptapEditorProps {
   value?: string
-  onChange: (value: string) => void
+  onChange: (json: any, html?: string) => void
   placeholder?: string
   className?: string
   minHeight?: string
@@ -100,7 +100,8 @@ const TiptapEditor = ({
     ],
     content: value,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML())
+      // Send both JSON and HTML for flexibility
+      onChange(editor.getJSON(), editor.getHTML())
     },
     editorProps: {
       attributes: {
