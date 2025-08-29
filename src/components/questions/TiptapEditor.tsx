@@ -1,11 +1,7 @@
 "use client";
 
-import { useEditor, EditorContent } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Link from '@tiptap/extension-link'
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
-import Placeholder from '@tiptap/extension-placeholder'
-import { createLowlight } from 'lowlight'
+import { useEditor, EditorContent } from "@tiptap/react";
+import Placeholder from "@tiptap/extension-placeholder";
 import {
   Bold,
   Italic,
@@ -17,65 +13,68 @@ import {
   Quote,
   Undo,
   Redo,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { useCallback, useEffect, useState } from 'react'
+} from "@/components/ui/select";
+import { useCallback, useEffect, useState } from "react";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { createLowlight } from "lowlight";
+import javascript from "highlight.js/lib/languages/javascript";
+import typescript from "highlight.js/lib/languages/typescript";
+import python from "highlight.js/lib/languages/python";
+import java from "highlight.js/lib/languages/java";
+import css from "highlight.js/lib/languages/css";
+import html from "highlight.js/lib/languages/xml";
 
 // Configure lowlight for code highlighting
-import javascript from 'highlight.js/lib/languages/javascript'
-import typescript from 'highlight.js/lib/languages/typescript'
-import python from 'highlight.js/lib/languages/python'
-import java from 'highlight.js/lib/languages/java'
-import css from 'highlight.js/lib/languages/css'
-import html from 'highlight.js/lib/languages/xml'
-
-const lowlight = createLowlight()
-lowlight.register('javascript', javascript)
-lowlight.register('typescript', typescript)
-lowlight.register('python', python)
-lowlight.register('java', java)
-lowlight.register('css', css)
-lowlight.register('html', html)
+const lowlight = createLowlight();
+lowlight.register("javascript", javascript);
+lowlight.register("typescript", typescript);
+lowlight.register("python", python);
+lowlight.register("java", java);
+lowlight.register("css", css);
+lowlight.register("html", html);
 
 interface TiptapEditorProps {
-  value?: string
-  onChange: (json: any, html?: string) => void
-  placeholder?: string
-  className?: string
-  minHeight?: string
+  value?: string;
+  onChange: (json: any, html?: string) => void;
+  placeholder?: string;
+  className?: string;
+  minHeight?: string;
 }
 
 const TiptapEditor = ({
-  value = '',
+  value = "",
   onChange,
-  placeholder = 'Write your answer here...',
-  className = '',
-  minHeight = 'min-h-48',
+  placeholder = "Write your answer here...",
+  className = "",
+  minHeight = "min-h-48",
 }: TiptapEditorProps) => {
-  const [isMounted, setIsMounted] = useState(false)
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
-  const [linkText, setLinkText] = useState('')
+  const [isMounted, setIsMounted] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    setIsMounted(true);
+  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -85,13 +84,14 @@ const TiptapEditor = ({
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-600 underline hover:text-blue-800',
+          class: "text-blue-600 underline hover:text-blue-800",
         },
       }),
       CodeBlockLowlight.configure({
         lowlight,
         HTMLAttributes: {
-          class: 'rounded-lg bg-slate-100 border border-slate-200 p-4 font-mono text-sm',
+          class:
+            "rounded-lg bg-slate-100 border border-slate-200 p-4 font-mono text-sm",
         },
       }),
       Placeholder.configure({
@@ -101,7 +101,7 @@ const TiptapEditor = ({
     content: value,
     onUpdate: ({ editor }) => {
       // Send both JSON and HTML for flexibility
-      onChange(editor.getJSON(), editor.getHTML())
+      onChange(editor.getJSON(), editor.getHTML());
     },
     editorProps: {
       attributes: {
@@ -109,28 +109,28 @@ const TiptapEditor = ({
       },
     },
     immediatelyRender: false,
-  })
+  });
 
   const setLink = useCallback(() => {
-    if (!editor) return
+    if (!editor) return;
 
-    const { from, to } = editor.state.selection
-    const selectedText = editor.state.doc.textBetween(from, to)
-    
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to);
+
     // Get existing link if we're editing one
-    const existingLink = editor.getAttributes('link')
-    
-    setLinkUrl(existingLink.href || '')
-    setLinkText(selectedText || '')
-    setLinkDialogOpen(true)
-  }, [editor])
+    const existingLink = editor.getAttributes("link");
+
+    setLinkUrl(existingLink.href || "");
+    setLinkText(selectedText || "");
+    setLinkDialogOpen(true);
+  }, [editor]);
 
   const handleLinkSave = () => {
-    if (!editor) return
+    if (!editor) return;
 
     if (!linkUrl.trim()) {
       // Remove link if URL is empty
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
     } else {
       // If there's link text and no current selection, insert text with link
       if (linkText.trim() && editor.state.selection.empty) {
@@ -138,33 +138,38 @@ const TiptapEditor = ({
           .chain()
           .focus()
           .insertContent({
-            type: 'text',
+            type: "text",
             text: linkText,
-            marks: [{ type: 'link', attrs: { href: linkUrl } }]
+            marks: [{ type: "link", attrs: { href: linkUrl } }],
           })
-          .run()
+          .run();
       } else {
         // Apply/update link to current selection
-        editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrl }).run()
+        editor
+          .chain()
+          .focus()
+          .extendMarkRange("link")
+          .setLink({ href: linkUrl })
+          .run();
       }
     }
 
     // Reset dialog state
-    setLinkDialogOpen(false)
-    setLinkUrl('')
-    setLinkText('')
-  }
+    setLinkDialogOpen(false);
+    setLinkUrl("");
+    setLinkText("");
+  };
 
   const handleLinkCancel = () => {
-    setLinkDialogOpen(false)
-    setLinkUrl('')
-    setLinkText('')
-  }
+    setLinkDialogOpen(false);
+    setLinkUrl("");
+    setLinkText("");
+  };
 
   const addCodeBlock = useCallback(() => {
-    if (!editor) return
-    editor.chain().focus().toggleCodeBlock().run()
-  }, [editor])
+    if (!editor) return;
+    editor.chain().focus().toggleCodeBlock().run();
+  }, [editor]);
 
   if (!isMounted) {
     return (
@@ -177,34 +182,39 @@ const TiptapEditor = ({
           <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!editor) {
-    return null
+    return null;
   }
 
   return (
-    <div className={`border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 ${className}`}>
+    <div
+      className={`border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 ${className}`}
+    >
       {/* Toolbar */}
       <div className="border-b border-gray-200 bg-gray-50 p-2 flex items-center gap-1 flex-wrap">
         {/* Heading Selector */}
         <Select
           value={
-            editor.isActive('heading', { level: 1 }) ? 'h1' :
-            editor.isActive('heading', { level: 2 }) ? 'h2' :
-            editor.isActive('heading', { level: 3 }) ? 'h3' :
-            'paragraph'
+            editor.isActive("heading", { level: 1 })
+              ? "h1"
+              : editor.isActive("heading", { level: 2 })
+              ? "h2"
+              : editor.isActive("heading", { level: 3 })
+              ? "h3"
+              : "paragraph"
           }
           onValueChange={(value) => {
-            if (value === 'paragraph') {
-              editor.chain().focus().setParagraph().run()
-            } else if (value === 'h1') {
-              editor.chain().focus().toggleHeading({ level: 1 }).run()
-            } else if (value === 'h2') {
-              editor.chain().focus().toggleHeading({ level: 2 }).run()
-            } else if (value === 'h3') {
-              editor.chain().focus().toggleHeading({ level: 3 }).run()
+            if (value === "paragraph") {
+              editor.chain().focus().setParagraph().run();
+            } else if (value === "h1") {
+              editor.chain().focus().toggleHeading({ level: 1 }).run();
+            } else if (value === "h2") {
+              editor.chain().focus().toggleHeading({ level: 2 }).run();
+            } else if (value === "h3") {
+              editor.chain().focus().toggleHeading({ level: 3 }).run();
             }
           }}
         >
@@ -224,12 +234,12 @@ const TiptapEditor = ({
         {/* Text Formatting Group */}
         <div className="flex items-center gap-0.5">
           <Button
-            variant={editor.isActive('bold') ? 'default' : 'ghost'}
+            variant={editor.isActive("bold") ? "default" : "ghost"}
             size="sm"
             className={`h-8 w-8 p-0 ${
-              editor.isActive('bold')
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                : 'hover:bg-gray-200'
+              editor.isActive("bold")
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "hover:bg-gray-200"
             }`}
             onClick={() => editor.chain().focus().toggleBold().run()}
             title="Bold ⌘B"
@@ -237,12 +247,12 @@ const TiptapEditor = ({
             <Bold className="w-4 h-4" />
           </Button>
           <Button
-            variant={editor.isActive('italic') ? 'default' : 'ghost'}
+            variant={editor.isActive("italic") ? "default" : "ghost"}
             size="sm"
             className={`h-8 w-8 p-0 ${
-              editor.isActive('italic')
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                : 'hover:bg-gray-200'
+              editor.isActive("italic")
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "hover:bg-gray-200"
             }`}
             onClick={() => editor.chain().focus().toggleItalic().run()}
             title="Italic ⌘I"
@@ -256,12 +266,12 @@ const TiptapEditor = ({
         {/* Code Group */}
         <div className="flex items-center gap-0.5">
           <Button
-            variant={editor.isActive('code') ? 'default' : 'ghost'}
+            variant={editor.isActive("code") ? "default" : "ghost"}
             size="sm"
             className={`h-8 w-8 p-0 ${
-              editor.isActive('code')
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                : 'hover:bg-gray-200'
+              editor.isActive("code")
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "hover:bg-gray-200"
             }`}
             onClick={() => editor.chain().focus().toggleCode().run()}
             title="Inline Code ⌘E"
@@ -269,12 +279,12 @@ const TiptapEditor = ({
             <Code className="w-4 h-4" />
           </Button>
           <Button
-            variant={editor.isActive('codeBlock') ? 'default' : 'ghost'}
+            variant={editor.isActive("codeBlock") ? "default" : "ghost"}
             size="sm"
             className={`h-8 w-8 p-0 ${
-              editor.isActive('codeBlock')
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                : 'hover:bg-gray-200'
+              editor.isActive("codeBlock")
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "hover:bg-gray-200"
             }`}
             onClick={addCodeBlock}
             title="Code Block ⌘⇧E"
@@ -288,12 +298,12 @@ const TiptapEditor = ({
         {/* Link & Quote Group */}
         <div className="flex items-center gap-0.5">
           <Button
-            variant={editor.isActive('link') ? 'default' : 'ghost'}
+            variant={editor.isActive("link") ? "default" : "ghost"}
             size="sm"
             className={`h-8 w-8 p-0 ${
-              editor.isActive('link')
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                : 'hover:bg-gray-200'
+              editor.isActive("link")
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "hover:bg-gray-200"
             }`}
             onClick={setLink}
             title="Link ⌘K"
@@ -301,12 +311,12 @@ const TiptapEditor = ({
             <LinkIcon className="w-4 h-4" />
           </Button>
           <Button
-            variant={editor.isActive('blockquote') ? 'default' : 'ghost'}
+            variant={editor.isActive("blockquote") ? "default" : "ghost"}
             size="sm"
             className={`h-8 w-8 p-0 ${
-              editor.isActive('blockquote')
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                : 'hover:bg-gray-200'
+              editor.isActive("blockquote")
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "hover:bg-gray-200"
             }`}
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             title="Quote ⌘⇧B"
@@ -320,12 +330,12 @@ const TiptapEditor = ({
         {/* Lists Group */}
         <div className="flex items-center gap-0.5">
           <Button
-            variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+            variant={editor.isActive("bulletList") ? "default" : "ghost"}
             size="sm"
             className={`h-8 w-8 p-0 ${
-              editor.isActive('bulletList')
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                : 'hover:bg-gray-200'
+              editor.isActive("bulletList")
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "hover:bg-gray-200"
             }`}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             title="Bullet List ⌘⇧8"
@@ -333,12 +343,12 @@ const TiptapEditor = ({
             <List className="w-4 h-4" />
           </Button>
           <Button
-            variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+            variant={editor.isActive("orderedList") ? "default" : "ghost"}
             size="sm"
             className={`h-8 w-8 p-0 ${
-              editor.isActive('orderedList')
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                : 'hover:bg-gray-200'
+              editor.isActive("orderedList")
+                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                : "hover:bg-gray-200"
             }`}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             title="Numbered List ⌘⇧7"
@@ -375,10 +385,7 @@ const TiptapEditor = ({
       </div>
 
       {/* Editor Content */}
-      <EditorContent 
-        editor={editor} 
-        className="prose-editor-content"
-      />
+      <EditorContent editor={editor} className="prose-editor-content" />
 
       {/* Link Dialog */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
@@ -468,7 +475,7 @@ const TiptapEditor = ({
           border: 1px solid #e2e8f0;
           border-radius: 0.25rem;
           padding: 0.125rem 0.375rem;
-          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
           font-size: 0.875rem;
           color: #1e293b;
         }
@@ -480,7 +487,7 @@ const TiptapEditor = ({
           padding: 1rem;
           margin: 1rem 0;
           overflow-x: auto;
-          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
           font-size: 0.875rem;
           line-height: 1.5;
         }
@@ -492,7 +499,8 @@ const TiptapEditor = ({
           color: inherit;
         }
 
-        .ProseMirror ul, .ProseMirror ol {
+        .ProseMirror ul,
+        .ProseMirror ol {
           margin: 1rem 0;
           padding-left: 2rem;
         }
@@ -578,7 +586,7 @@ const TiptapEditor = ({
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default TiptapEditor
+export default TiptapEditor;

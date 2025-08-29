@@ -1,5 +1,5 @@
 export interface User {
-  id: string;
+  id?: string;
   name: string;
   reputation: number;
   avatar?: string;
@@ -22,12 +22,14 @@ export interface Answer {
   id: number;
   votes: number;
   content: string;
+  contentJson?: any; // Tiptap JSON format
   author: User;
   timeAgo: string;
   isAccepted: boolean;
   comments?: Comment[];
   userVote?: 'up' | 'down' | null;
   isBookmarked?: boolean;
+  qualityScore?: number; // Quality score for moderation
 }
 
 export interface Question {
@@ -43,6 +45,7 @@ export interface Question {
   bountyAmount?: number;
   excerpt?: string;
   content?: string;
+  contentJson?: any; // Tiptap JSON format
   answers_data?: Answer[];
   comments?: Comment[];
   userVote?: 'up' | 'down' | null;

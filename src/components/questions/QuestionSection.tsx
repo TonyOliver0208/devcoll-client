@@ -50,6 +50,7 @@ const QuestionSection = ({
           <div className="flex-1 min-w-0">
             <ContentDisplay 
               content={question.content || question.excerpt || ""} 
+              contentJson={question.contentJson}
               className="mb-4 sm:mb-6"
             />
             

@@ -1,25 +1,6 @@
 "use client";
 
-import { generateHTML } from '@tiptap/html';
-import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-import { createLowlight } from 'lowlight';
-import javascript from 'highlight.js/lib/languages/javascript';
-import typescript from 'highlight.js/lib/languages/typescript';
-import python from 'highlight.js/lib/languages/python';
-import java from 'highlight.js/lib/languages/java';
-import css from 'highlight.js/lib/languages/css';
-import html from 'highlight.js/lib/languages/xml';
-
-// Configure lowlight for code highlighting (same as editor)
-const lowlight = createLowlight();
-lowlight.register('javascript', javascript);
-lowlight.register('typescript', typescript);
-lowlight.register('python', python);
-lowlight.register('java', java);
-lowlight.register('css', css);
-lowlight.register('html', html);
+import { ReactNode } from 'react';
 
 interface TiptapContentRendererProps {
   content: any; // Tiptap JSON object
@@ -31,130 +12,155 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
     return null;
   }
 
-  try {
-    // Use Tiptap's official HTML generator with the same extensions as editor
-    const html = generateHTML(content, [
-      StarterKit.configure({
-        codeBlock: false, // We'll use the lowlight version
-      }),
-      Link.configure({
-        HTMLAttributes: {
-          class: 'text-blue-600 underline hover:text-blue-800',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
-      }),
-      CodeBlockLowlight.configure({
-        lowlight,
-        HTMLAttributes: {
-          class: 'rounded-lg bg-gray-50 border border-gray-200 p-4 my-3 font-mono text-sm overflow-x-auto',
-        },
-      }),
-    ]);
+  const renderNode = (node: any, key: number): ReactNode => {
+    if (!node) return null;
 
+    switch (node.type) {
+      case 'paragraph':
+        return (
+          <p key={key} className="mb-4 leading-6">
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+          </p>
+        );
+
+      case 'text':
+        let textElement: ReactNode = node.text || '';
+        
+        if (node.marks) {
+          node.marks.forEach((mark: any) => {
+            switch (mark.type) {
+              case 'bold':
+                textElement = <strong key={`bold-${key}`}>{textElement}</strong>;
+                break;
+              case 'italic':
+                textElement = <em key={`italic-${key}`}>{textElement}</em>;
+                break;
+              case 'code':
+                textElement = (
+                  <code 
+                    key={`code-${key}`}
+                    className="bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 text-sm font-mono"
+                  >
+                    {textElement}
+                  </code>
+                );
+                break;
+              case 'link':
+                textElement = (
+                  <a 
+                    key={`link-${key}`}
+                    href={mark.attrs?.href || '#'}
+                    className="text-blue-600 underline hover:text-blue-800"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {textElement}
+                  </a>
+                );
+                break;
+            }
+          });
+        }
+        
+        return textElement;
+
+      case 'heading':
+        const level = node.attrs?.level || 1;
+        const HeadingComponent = ({ children, ...props }: any) => {
+          const baseClasses = "font-bold mb-3 mt-6";
+          const levelClasses = {
+            1: "text-2xl",
+            2: "text-xl", 
+            3: "text-lg",
+            4: "text-base",
+            5: "text-sm",
+            6: "text-sm"
+          };
+          const className = `${baseClasses} ${levelClasses[level as keyof typeof levelClasses] || levelClasses[1]}`;
+          
+          switch (level) {
+            case 1: return <h1 {...props} className={className}>{children}</h1>;
+            case 2: return <h2 {...props} className={className}>{children}</h2>;
+            case 3: return <h3 {...props} className={className}>{children}</h3>;
+            case 4: return <h4 {...props} className={className}>{children}</h4>;
+            case 5: return <h5 {...props} className={className}>{children}</h5>;
+            case 6: return <h6 {...props} className={className}>{children}</h6>;
+            default: return <h1 {...props} className={className}>{children}</h1>;
+          }
+        };
+        
+        return (
+          <HeadingComponent key={key}>
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+          </HeadingComponent>
+        );
+
+      case 'codeBlock':
+        const language = node.attrs?.language || '';
+        return (
+          <div key={key} className="my-4">
+            <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-x-auto">
+              {language && (
+                <div className="text-xs text-gray-500 mb-2 uppercase font-semibold">
+                  {language}
+                </div>
+              )}
+              <code className="font-mono text-sm leading-relaxed">
+                {node.content ? node.content.map((child: any) => child.text || '').join('') : ''}
+              </code>
+            </pre>
+          </div>
+        );
+
+      case 'blockquote':
+        return (
+          <blockquote key={key} className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700 bg-gray-50 py-2 rounded-r">
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+          </blockquote>
+        );
+
+      case 'bulletList':
+        return (
+          <ul key={key} className="list-disc pl-6 my-4 space-y-1">
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+          </ul>
+        );
+
+      case 'orderedList':
+        return (
+          <ol key={key} className="list-decimal pl-6 my-4 space-y-1">
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+          </ol>
+        );
+
+      case 'listItem':
+        return (
+          <li key={key} className="leading-6">
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+          </li>
+        );
+
+      case 'hardBreak':
+        return <br key={key} />;
+
+      default:
+        // For unknown node types, try to render children
+        if (node.content) {
+          return (
+            <div key={key}>
+              {node.content.map((child: any, i: number) => renderNode(child, i))}
+            </div>
+          );
+        }
+        return null;
+    }
+  };
+
+  try {
     return (
-      <>
-        <div 
-          className={`tiptap-content prose prose-sm max-w-none ${className}`}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-        <style jsx>{`
-          .tiptap-content {
-            line-height: 1.6;
-          }
-          
-          .tiptap-content p {
-            margin-bottom: 1rem;
-            line-height: 1.6;
-          }
-          
-          .tiptap-content strong {
-            font-weight: 700;
-          }
-          
-          .tiptap-content em {
-            font-style: italic;
-          }
-          
-          .tiptap-content code {
-            background-color: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.25rem;
-            padding: 0.125rem 0.375rem;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 0.875rem;
-            color: #1e293b;
-          }
-          
-          .tiptap-content pre {
-            margin: 1rem 0;
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            overflow-x: auto;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 0.875rem;
-            line-height: 1.5;
-          }
-          
-          .tiptap-content pre code {
-            background: none;
-            border: none;
-            padding: 0;
-            color: inherit;
-          }
-          
-          .tiptap-content ul, .tiptap-content ol {
-            margin: 1rem 0;
-            padding-left: 2rem;
-          }
-          
-          .tiptap-content ul {
-            list-style-type: disc;
-          }
-          
-          .tiptap-content ol {
-            list-style-type: decimal;
-          }
-          
-          .tiptap-content li {
-            margin: 0.25rem 0;
-            display: list-item;
-          }
-          
-          .tiptap-content blockquote {
-            border-left: 4px solid #e5e7eb;
-            padding-left: 1rem;
-            margin: 1rem 0;
-            font-style: italic;
-            color: #6b7280;
-            background-color: #f9fafb;
-            padding: 0.75rem 1rem;
-            border-radius: 0.25rem;
-          }
-          
-          .tiptap-content h1, .tiptap-content h2, .tiptap-content h3, 
-          .tiptap-content h4, .tiptap-content h5, .tiptap-content h6 {
-            font-weight: 700;
-            line-height: 1.2;
-            margin-top: 1.5rem;
-            margin-bottom: 0.75rem;
-          }
-          
-          .tiptap-content h1 {
-            font-size: 2rem;
-          }
-          
-          .tiptap-content h2 {
-            font-size: 1.5rem;
-          }
-          
-          .tiptap-content h3 {
-            font-size: 1.25rem;
-          }
-        `}</style>
-      </>
+      <div className={`tiptap-content prose prose-sm max-w-none ${className}`}>
+        {content.content.map((node: any, i: number) => renderNode(node, i))}
+      </div>
     );
   } catch (error) {
     console.error('Error rendering Tiptap content:', error);

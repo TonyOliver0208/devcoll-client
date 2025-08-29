@@ -135,7 +135,7 @@ const ActionButtons = ({
 
 interface AuthorCardProps {
   author: {
-    id: string;
+    id?: string;
     name: string;
     reputation: number;
     avatar?: string;

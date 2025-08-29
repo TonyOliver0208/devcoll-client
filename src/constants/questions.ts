@@ -16,6 +16,193 @@ export const mockQuestions: Question[] = [
     hasAcceptedAnswer: false,
     excerpt: "Can (and maybe should) my coroutine promise class MyCoroutine::Promise have static or non-static initial_suspend and final_suspend methods?",
     content: "Can (and maybe should) my coroutine promise class `MyCoroutine::Promise` have **static** or **non-static** `initial_suspend` and `final_suspend` methods?\n\n```cpp\nstatic std::suspend_always initial_suspend() noexcept\n{\n    return {};\n}\n\nstatic std::suspend_always final_suspend() noexcept  \n{\n    return {};\n}\n```\n\nWhile this works fine (tested with GCC 13), Clang-Tidy complains \"Static member accessed through instance\", when using this coroutine type:\n\n```cpp\nMyCoroutine foo() // Clang-Tidy warning here\n{\n    co_return;\n}\n```\n\nThis makes sense because \"when a coroutine begins execution, it [...] calls `promise.initial_suspend()` \" (see [cppreference.com](https://en.cppreference.com/w/cpp/language/coroutines.html)) via instance, not via promise type.\n\nSo should I remove the `static` keyword from these methods (and make them `const`)? A `this` pointer is not required, but probably the compiler can optimize these calls, anyway. Or are static methods a good idea here and is there a better way to deal with this warning?\n\nSome of the examples from [cppreference.com](https://en.cppreference.com/w/cpp/language/coroutines.html) do have static `initial_suspend` and `final_suspend` methods, some don't.",
+    contentJson: {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Can (and maybe should) my coroutine promise class "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "MyCoroutine::Promise"
+            },
+            {
+              "type": "text",
+              "text": " have "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "bold"}],
+              "text": "static"
+            },
+            {
+              "type": "text",
+              "text": " or "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "bold"}],
+              "text": "non-static"
+            },
+            {
+              "type": "text",
+              "text": " "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "initial_suspend"
+            },
+            {
+              "type": "text",
+              "text": " and "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "final_suspend"
+            },
+            {
+              "type": "text",
+              "text": " methods?"
+            }
+          ]
+        },
+        {
+          "type": "codeBlock",
+          "attrs": {"language": "cpp"},
+          "content": [
+            {
+              "type": "text",
+              "text": "static std::suspend_always initial_suspend() noexcept\n{\n    return {};\n}\n\nstatic std::suspend_always final_suspend() noexcept  \n{\n    return {};\n}"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "While this works fine (tested with GCC 13), Clang-Tidy complains \"Static member accessed through instance\", when using this coroutine type:"
+            }
+          ]
+        },
+        {
+          "type": "codeBlock",
+          "attrs": {"language": "cpp"},
+          "content": [
+            {
+              "type": "text",
+              "text": "MyCoroutine foo() // Clang-Tidy warning here\n{\n    co_return;\n}"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "This makes sense because \"when a coroutine begins execution, it [...] calls "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "promise.initial_suspend()"
+            },
+            {
+              "type": "text",
+              "text": " \" (see "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "link", "attrs": {"href": "https://en.cppreference.com/w/cpp/language/coroutines.html"}}],
+              "text": "cppreference.com"
+            },
+            {
+              "type": "text",
+              "text": ") via instance, not via promise type."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "So should I remove the "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "static"
+            },
+            {
+              "type": "text",
+              "text": " keyword from these methods (and make them "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "const"
+            },
+            {
+              "type": "text",
+              "text": ")? A "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "this"
+            },
+            {
+              "type": "text",
+              "text": " pointer is not required, but probably the compiler can optimize these calls, anyway. Or are static methods a good idea here and is there a better way to deal with this warning?"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Some of the examples from "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "link", "attrs": {"href": "https://en.cppreference.com/w/cpp/language/coroutines.html"}}],
+              "text": "cppreference.com"
+            },
+            {
+              "type": "text",
+              "text": " do have static "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "initial_suspend"
+            },
+            {
+              "type": "text",
+              "text": " and "
+            },
+            {
+              "type": "text",
+              "marks": [{"type": "code"}],
+              "text": "final_suspend"
+            },
+            {
+              "type": "text",
+              "text": " methods, some don't."
+            }
+          ]
+        }
+      ]
+    },
     comments: [
       {
         id: 1,
@@ -65,6 +252,65 @@ export const mockQuestions: Question[] = [
         id: 1,
         votes: 0,
         content: "Making them `static` would change nothing meaningful about the program. Non-`static`, non-`virtual` members don't have any inherent limitations to compiler-based optimizations compared to `static` ones. If the function definitions are in the header/module interface, then the compiler can inline them or otherwise do definition-based optimizations regardless of whether they're `static` or not.",
+        contentJson: {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Making them "
+                },
+                {
+                  "type": "text",
+                  "marks": [{"type": "code"}],
+                  "text": "static"
+                },
+                {
+                  "type": "text",
+                  "text": " would change nothing meaningful about the program. Non-"
+                },
+                {
+                  "type": "text",
+                  "marks": [{"type": "code"}],
+                  "text": "static"
+                },
+                {
+                  "type": "text",
+                  "text": ", non-"
+                },
+                {
+                  "type": "text",
+                  "marks": [{"type": "code"}],
+                  "text": "virtual"
+                },
+                {
+                  "type": "text",
+                  "text": " members don't have any inherent limitations to compiler-based optimizations compared to "
+                },
+                {
+                  "type": "text",
+                  "marks": [{"type": "code"}],
+                  "text": "static"
+                },
+                {
+                  "type": "text",
+                  "text": " ones. If the function definitions are in the header/module interface, then the compiler can inline them or otherwise do definition-based optimizations regardless of whether they're "
+                },
+                {
+                  "type": "text",
+                  "marks": [{"type": "code"}],
+                  "text": "static"
+                },
+                {
+                  "type": "text",
+                  "text": " or not."
+                }
+              ]
+            }
+          ]
+        },
         author: {
           name: "Nicol Bolas",
           reputation: 479000

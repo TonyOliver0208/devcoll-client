@@ -186,8 +186,19 @@ const AnswerCard = ({
               
               <ContentDisplay 
                 content={answer.content} 
+                contentJson={answer.contentJson}
                 className="mb-4 sm:mb-6"
               />
+              
+              {/* Low quality warning */}
+              {answer.qualityScore && answer.qualityScore < 4 && (
+                <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                  <div className="flex items-center gap-2 text-orange-700 text-sm">
+                    <span>⚠️</span>
+                    <span>This answer may need improvement. Consider editing to add more detail or explanation.</span>
+                  </div>
+                </div>
+              )}
               
               <Separator className="my-4" />
               
