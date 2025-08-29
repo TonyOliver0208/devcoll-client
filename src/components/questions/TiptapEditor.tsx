@@ -13,6 +13,9 @@ import {
   Quote,
   Undo,
   Redo,
+  ExternalLink,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
@@ -52,6 +55,79 @@ lowlight.register("java", java);
 lowlight.register("css", css);
 lowlight.register("html", html);
 
+// URL validation function
+const isValidUrl = (string: string): boolean => {
+  try {
+    const url = new URL(string);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (_) {
+    return false;
+  }
+};
+
+// Custom Link extension with proper cursor behavior at edges
+const CustomLink = Link.extend({
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      openOnClick: false,
+      linkOnPaste: false,
+      HTMLAttributes: {
+        class: "text-blue-600 underline hover:text-blue-800 cursor-pointer",
+        target: "",
+        rel: "",
+      },
+    }
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      ...this.parent?.(),
+      // Handle typing at link boundaries - prevent link extension
+      Backspace: ({ editor }) => {
+        const { state } = editor;
+        const { selection } = state;
+        
+        if (selection.empty) {
+          const { $from } = selection;
+          const linkMark = $from.marks().find(mark => mark.type === this.type);
+          
+          // If we're in a link and at the beginning, remove link mark for next character
+          if (linkMark && $from.parentOffset <= 1) {
+            return false; // Let normal backspace work, but prepare to unset mark
+          }
+        }
+        return false;
+      },
+    }
+  },
+
+  onCreate() {
+    // Override the default behavior to handle cursor positioning
+    this.editor.on('selectionUpdate', ({ editor }) => {
+      const { selection } = editor.state;
+      const { $from } = selection;
+      
+      if (selection.empty) {
+        const linkMark = $from.marks().find(mark => mark.type === this.type);
+        
+        if (linkMark) {
+          const start = $from.pos - $from.parentOffset;
+          const end = start + $from.parent.content.size;
+          
+          // If cursor is at the very beginning (position 0) or very end of the link
+          if ($from.pos === start || $from.pos === end) {
+            // Remove link mark from stored marks for future input
+            const tr = editor.state.tr;
+            tr.removeStoredMark(linkMark.type);
+            editor.view.dispatch(tr);
+          }
+        }
+      }
+    });
+  },
+});
+
 interface TiptapEditorProps {
   value?: string;
   onChange: (json: any, html?: string) => void;
@@ -71,22 +147,42 @@ const TiptapEditor = ({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkText, setLinkText] = useState("");
+  const [linkPopupOpen, setLinkPopupOpen] = useState(false);
+  const [linkPopupPosition, setLinkPopupPosition] = useState({ x: 0, y: 0 });
+  const [selectedLinkUrl, setSelectedLinkUrl] = useState("");
+  const [urlError, setUrlError] = useState("");
+  const linkPopupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Handle click outside for link popup
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        linkPopupRef.current &&
+        !linkPopupRef.current.contains(event.target as Node)
+      ) {
+        setLinkPopupOpen(false);
+      }
+    };
+
+    if (linkPopupOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [linkPopupOpen]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        codeBlock: false, // We'll use the lowlight version instead
+        codeBlock: false,
       }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: "text-blue-600 underline hover:text-blue-800",
-        },
-      }),
+      CustomLink, // Use custom link extension instead of default
       CodeBlockLowlight.configure({
         lowlight,
         HTMLAttributes: {
@@ -100,24 +196,121 @@ const TiptapEditor = ({
     ],
     content: value,
     onUpdate: ({ editor }) => {
-      // Send both JSON and HTML for flexibility
       onChange(editor.getJSON(), editor.getHTML());
     },
     editorProps: {
       attributes: {
         class: `prose prose-sm max-w-none focus:outline-none ${minHeight} p-4`,
       },
+      handleDOMEvents: {
+        click: (view, event) => {
+          const target = event.target as HTMLElement;
+          const linkEl = target.closest("a");
+
+          if (linkEl && linkEl.tagName === "A") {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
+            const href = linkEl.getAttribute("href");
+            if (href) {
+              const rect = linkEl.getBoundingClientRect();
+              setLinkPopupPosition({
+                x: rect.left + rect.width / 2,
+                y: rect.bottom + window.scrollY + 5,
+              });
+              setSelectedLinkUrl(href);
+              setLinkPopupOpen(true);
+            }
+            return true; // Prevent further processing
+          }
+
+          setLinkPopupOpen(false); // Close popup if clicking elsewhere
+          return false;
+        },
+      },
+      handleClickOn: (view, pos, node, nodePos, event, direct) => {
+        if (node.marks?.some((mark) => mark.type.name === "link")) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+
+          const linkMark = node.marks.find((mark) => mark.type.name === "link");
+          const href = linkMark?.attrs?.href || "";
+
+          if (href) {
+            const domAtPos = view.domAtPos(pos);
+            const linkEl = (domAtPos.node as HTMLElement)?.closest("a");
+
+            if (linkEl) {
+              const rect = linkEl.getBoundingClientRect();
+              setLinkPopupPosition({
+                x: rect.left + rect.width / 2,
+                y: rect.bottom + window.scrollY + 5,
+              });
+              setSelectedLinkUrl(href);
+              setLinkPopupOpen(true);
+            }
+          }
+
+          return true; // Stop further processing
+        }
+
+        setLinkPopupOpen(false); // Close popup if clicking elsewhere
+        return false;
+      },
     },
     immediatelyRender: false,
   });
+
+  // Ultimate failsafe: Global document click interceptor for any links in the editor
+  useEffect(() => {
+    if (!editor) return;
+
+    const editorElement = editor.view.dom;
+
+    const globalClickHandler = (event: Event) => {
+      const target = event.target as HTMLElement;
+      
+      // Check if the click originated from within the editor
+      if (editorElement.contains(target)) {
+        const linkElement = target.closest('a');
+        
+        if (linkElement && linkElement.getAttribute('href')) {
+          console.log('🔥 GLOBAL INTERCEPTOR: Preventing link navigation!');
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          
+          const href = linkElement.getAttribute('href');
+          
+          if (href) {
+            const rect = linkElement.getBoundingClientRect();
+            
+            setLinkPopupPosition({
+              x: rect.left + rect.width / 2,
+              y: rect.bottom + window.scrollY + 5,
+            });
+            setSelectedLinkUrl(href);
+            setLinkPopupOpen(true);
+          }
+        }
+      }
+    };
+
+    // Capture phase to intercept before any other handlers
+    document.addEventListener('click', globalClickHandler, true);
+
+    return () => {
+      document.removeEventListener('click', globalClickHandler, true);
+    };
+  }, [editor]);
 
   const setLink = useCallback(() => {
     if (!editor) return;
 
     const { from, to } = editor.state.selection;
     const selectedText = editor.state.doc.textBetween(from, to);
-
-    // Get existing link if we're editing one
     const existingLink = editor.getAttributes("link");
 
     setLinkUrl(existingLink.href || "");
@@ -127,43 +320,123 @@ const TiptapEditor = ({
 
   const handleLinkSave = () => {
     if (!editor) return;
+    setUrlError("");
 
     if (!linkUrl.trim()) {
-      // Remove link if URL is empty
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
     } else {
-      // If there's link text and no current selection, insert text with link
+      if (!isValidUrl(linkUrl.trim())) {
+        setUrlError(
+          "Please enter a valid URL (must start with http:// or https://)"
+        );
+        return;
+      }
+
       if (linkText.trim() && editor.state.selection.empty) {
-        editor
-          .chain()
-          .focus()
-          .insertContent({
-            type: "text",
-            text: linkText,
-            marks: [{ type: "link", attrs: { href: linkUrl } }],
-          })
-          .run();
+        const linkContent = {
+          type: "text",
+          text: linkText,
+          marks: [{ type: "link", attrs: { href: linkUrl.trim() } }],
+        };
+        editor.chain().focus().insertContent(linkContent).run();
+        editor.chain().focus().unsetMark("link").insertContent(" ").run();
       } else {
-        // Apply/update link to current selection
+        const { from, to } = editor.state.selection;
         editor
           .chain()
           .focus()
           .extendMarkRange("link")
-          .setLink({ href: linkUrl })
+          .setLink({ href: linkUrl.trim() })
+          .run();
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(to)
+          .unsetMark("link")
+          .insertContent(" ")
           .run();
       }
     }
 
-    // Reset dialog state
     setLinkDialogOpen(false);
     setLinkUrl("");
     setLinkText("");
+    setUrlError("");
   };
 
   const handleLinkCancel = () => {
     setLinkDialogOpen(false);
     setLinkUrl("");
     setLinkText("");
+    setUrlError("");
+  };
+
+  const handleVisitLink = () => {
+    if (selectedLinkUrl) {
+      window.open(selectedLinkUrl, "_blank", "noopener,noreferrer");
+    }
+    setLinkPopupOpen(false);
+  };
+
+  const handleEditLink = () => {
+    if (!editor) return;
+
+    const { state } = editor;
+    const { doc } = state;
+    let linkText = "";
+
+    doc.descendants((node, pos) => {
+      if (
+        node.isText &&
+        node.marks.some(
+          (mark) =>
+            mark.type.name === "link" && mark.attrs.href === selectedLinkUrl
+        )
+      ) {
+        linkText = node.text || "";
+        return false;
+      }
+    });
+
+    setLinkUrl(selectedLinkUrl);
+    setLinkText(linkText);
+    setLinkPopupOpen(false);
+    setLinkDialogOpen(true);
+  };
+
+  const handleDeleteLink = () => {
+    if (!editor) return;
+
+    const { state } = editor;
+    const { doc } = state;
+
+    doc.descendants((node, pos) => {
+      if (
+        node.isText &&
+        node.marks.some(
+          (mark) =>
+            mark.type.name === "link" && mark.attrs.href === selectedLinkUrl
+        )
+      ) {
+        const linkMark = node.marks.find(
+          (mark) =>
+            mark.type.name === "link" && mark.attrs.href === selectedLinkUrl
+        );
+        if (linkMark) {
+          const from = pos;
+          const to = pos + node.nodeSize;
+          editor
+            .chain()
+            .focus()
+            .setTextSelection({ from, to })
+            .unsetLink()
+            .run();
+        }
+        return false;
+      }
+    });
+
+    setLinkPopupOpen(false);
   };
 
   const addCodeBlock = useCallback(() => {
@@ -400,9 +673,18 @@ const TiptapEditor = ({
                 id="link-url"
                 placeholder="https://"
                 value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
+                onChange={(e) => {
+                  setLinkUrl(e.target.value);
+                  setUrlError(""); // Clear error when user types
+                }}
                 autoFocus
+                className={
+                  urlError
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : ""
+                }
               />
+              {urlError && <p className="text-sm text-red-600">{urlError}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="link-text">Link text</Label>
@@ -424,6 +706,45 @@ const TiptapEditor = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Link Popup */}
+      {linkPopupOpen && (
+        <div
+          ref={linkPopupRef}
+          className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl px-3 py-1"
+          style={{
+            left: `${linkPopupPosition.x}px`,
+            top: `${linkPopupPosition.y}px`,
+            transform: "translateX(-50%)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="text-sm text-blue-600 truncate max-w-[250px] cursor-pointer"
+              onClick={handleVisitLink}
+              title={selectedLinkUrl}
+            >
+              {selectedLinkUrl}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-blue-50"
+              onClick={handleEditLink}
+            >
+              <Edit className="w-3 h-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 text-red-600 hover:bg-red-50"
+              onClick={handleDeleteLink}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         .ProseMirror {
@@ -530,10 +851,29 @@ const TiptapEditor = ({
           color: #2563eb;
           text-decoration: underline;
           cursor: pointer;
+          /* Completely disable default link behavior */
+          pointer-events: none;
         }
 
         .ProseMirror a:hover {
           color: #1d4ed8;
+        }
+        
+        /* Re-enable pointer events for TipTap to handle clicks */
+        .ProseMirror {
+          pointer-events: auto;
+        }
+        
+        /* Override any other pointer events */
+        .ProseMirror a {
+          pointer-events: auto !important;
+        }
+        
+        /* Disable native link behavior completely */
+        .ProseMirror a[href] {
+          -webkit-user-drag: none;
+          -webkit-user-select: none;
+          user-select: none;
         }
 
         /* Code block syntax highlighting */
