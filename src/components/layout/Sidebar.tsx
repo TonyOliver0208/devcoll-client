@@ -13,7 +13,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <aside
       className={`${
         isOpen ? "translate-x-0" : "-translate-x-full"
-      } lg:translate-x-0 fixed lg:sticky lg:top-[50px] lg:h-[calc(100vh-50px)] top-[50px] inset-y-0 left-0 z-40 w-57 bg-white border-r border-gray-300 transition-transform duration-300 ease-in-out`}
+      } lg:translate-x-0 fixed lg:sticky lg:top-[50px] lg:h-[calc(100vh-50px)] top-[50px] inset-y-0 left-0 z-40 w-48 bg-white border-r border-gray-300 transition-transform duration-300 ease-in-out`}
     >
       <div className="pt-4 pb-4 overflow-y-auto h-full">
         <NavigationMenu items={sidebarItems} />
