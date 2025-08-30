@@ -35,9 +35,11 @@ export default function TagQuestionsHeader({
           >
             Watching
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-sm px-4 py-2">
-            Ask Question
-          </Button>
+          <Link href="/questions/add">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-sm px-4 py-2">
+              Ask Question
+            </Button>
+          </Link>
         </div>
       </div>
 

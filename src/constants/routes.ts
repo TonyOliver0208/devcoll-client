@@ -7,6 +7,7 @@ export const AUTH_ROUTES = {
 export const PUBLIC_ROUTES = {
   HOME: '/',
   QUESTIONS: '/questions',
+  ADD_QUESTION: '/questions/add',
   POSTS: '/posts',
   MEDIA: '/media'
 } as const;

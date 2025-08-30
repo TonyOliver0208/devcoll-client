@@ -25,9 +25,11 @@ export default function QuestionsHeader({
         </div>
       </div>
       {showButton && (
-        <Button className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-4 sm:px-6 self-start sm:self-auto">
-          Ask Question
-        </Button>
+        <Link href="/questions/add">
+          <Button className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-4 sm:px-6 self-start sm:self-auto">
+            Ask Question
+          </Button>
+        </Link>
       )}
     </div>
   );
@@ -36,16 +38,23 @@ export default function QuestionsHeader({
 // Export a specific header for posts/questions feed like PostsHeader
 export function PostsQuestionsHeader() {
   return (
-    <div className="mb-3 sm:mb-4">
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-        Interesting questions for you
-      </h2>
-      <div className="text-xs sm:text-sm text-gray-500">
-        Based on your viewing history and watched tags.{" "}
-        <Link href="#" className="text-blue-600 hover:text-blue-800">
-          Customize your feed
-        </Link>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-4 sm:gap-0">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+          Interesting questions for you
+        </h2>
+        <div className="text-xs sm:text-sm text-gray-500">
+          Based on your viewing history and watched tags.{" "}
+          <Link href="#" className="text-blue-600 hover:text-blue-800">
+            Customize your feed
+          </Link>
+        </div>
       </div>
+      <Link href="/questions/add">
+        <Button className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-4 sm:px-6">
+          Ask Question
+        </Button>
+      </Link>
     </div>
   );
 }
