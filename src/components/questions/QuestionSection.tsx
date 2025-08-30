@@ -73,17 +73,7 @@ const QuestionSection = ({
             
             {/* Comments Section */}
             <div className="ml-12 sm:ml-16 mt-3">
-              {question.comments && question.comments.length > 0 ? (
-                <CommentList comments={question.comments} />
-              ) : (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-blue-600 hover:text-blue-800 p-0 h-auto"
-                >
-                  Add a comment
-                </Button>
-              )}
+              <CommentList comments={question.comments || []} />
             </div>
           </div>
         </div>

@@ -57,12 +57,24 @@ const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
 
   if (comments.length === 0) {
     return (
-      <button
-        onClick={() => setShowAddComment(!showAddComment)}
-        className="text-blue-600 hover:text-blue-800 text-sm"
-      >
-        Add a comment
-      </button>
+      <div className="pt-2">
+        {!showAddComment ? (
+          <button
+            onClick={() => setShowAddComment(true)}
+            className="text-blue-600 hover:text-blue-800 text-sm"
+          >
+            Add a comment
+          </button>
+        ) : (
+          <AddCommentForm
+            newComment={newComment}
+            setNewComment={setNewComment}
+            onSubmit={handleAddComment}
+            onCancel={handleCancel}
+            isSubmitting={isSubmitting}
+          />
+        )}
+      </div>
     );
   }
 
