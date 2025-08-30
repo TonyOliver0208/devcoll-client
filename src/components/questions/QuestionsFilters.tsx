@@ -44,7 +44,10 @@ export default function QuestionsFilters({
         ))}
       </div>
 
-      <Button variant="outline" className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-100 hover:border-blue-600 hover:text-blue-700 px-4 py-2 rounded-md font-medium transition-colors cursor-pointer"
+      >
         <Filter size={16} />
         Filter
       </Button>
