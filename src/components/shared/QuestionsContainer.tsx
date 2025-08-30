@@ -7,11 +7,14 @@ import RightSidebar from "@/components/home/RightSidebar";
 import QuestionsFeed from "@/components/questions/QuestionsFeed";
 import QuestionsFilters from "@/components/questions/QuestionsFilters";
 import QuestionsHeader, { PostsQuestionsHeader } from "@/components/questions/QuestionsHeader";
+import TagQuestionsHeader from "@/components/questions/TagQuestionsHeader";
 import { QuestionFeedProps } from "@/types/questions";
 
 interface QuestionsContainerProps extends QuestionFeedProps {
   username?: string;
   showPostsHeader?: boolean;
+  tagName?: string;
+  isTagPage?: boolean;
 }
 
 export default function QuestionsContainer({
@@ -22,6 +25,8 @@ export default function QuestionsContainer({
   showSuggestedDevelopers = false,
   showPostsHeader = false,
   username = "User",
+  tagName,
+  isTagPage = false,
 }: QuestionsContainerProps) {
   const [activeFilter, setActiveFilter] = useState("newest");
 
@@ -38,8 +43,16 @@ export default function QuestionsContainer({
           {/* Posts Questions Header - For home page to match PostsHeader */}
           {showPostsHeader && <PostsQuestionsHeader />}
 
+          {/* Tag Questions Header - For individual tag pages */}
+          {isTagPage && tagName && (
+            <TagQuestionsHeader 
+              tagName={tagName} 
+              questionCount={questions.length}
+            />
+          )}
+
           {/* Questions Header - For questions page */}
-          {showHeader && !showPostsHeader && <QuestionsHeader />}
+          {showHeader && !showPostsHeader && !isTagPage && <QuestionsHeader />}
 
           {/* Questions Filters - Reuse existing component */}
           {showFilters && (

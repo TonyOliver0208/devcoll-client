@@ -349,6 +349,36 @@ export const mockQuestions: Question[] = [
     excerpt: "I have AsciiDoc files with the following header: = Title :description: My page description. :key-words: keyword 1,keyword 2,keyword 3 I would like Vale to ignore the line starting with :keyword..."
   },
   {
+    id: 99999,
+    title: "How can I remove a specific item from an array in JavaScript?",
+    votes: 12210,
+    answers: 50,
+    views: 135000000,
+    tags: ["javascript", "arrays"],
+    timeAgo: "Apr 23, 2011",
+    author: {
+      name: "Walker",
+      reputation: 135000
+    },
+    hasAcceptedAnswer: true,
+    excerpt: "How do I remove a specific value from an array? Something like: array.remove(value); Constraints: I have to use core JavaScript. Frameworks are not allowed."
+  },
+  {
+    id: 88888,
+    title: "How do I check if an element is hidden in jQuery?",
+    votes: 8740,
+    answers: 67,
+    views: 330000,
+    tags: ["javascript", "jquery", "dom", "visibility"],
+    timeAgo: "Oct 7, 2008",
+    author: {
+      name: "Philip Morton",
+      reputation: 132000
+    },
+    hasAcceptedAnswer: true,
+    excerpt: "How do I toggle the visibility of an element using .hide(), .show(), or .toggle()? How would I test if an element is visible or hidden?"
+  },
+  {
     id: 2,
     title: "Parameter 0 of method entityManagerFactory in PrimaryDataSourceConfig required a bean of type EntityManagerFactoryBuilder that could not be found",
     votes: 0,
