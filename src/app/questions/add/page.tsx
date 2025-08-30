@@ -35,7 +35,28 @@ export default function AddQuestionPage() {
     }
   };
 
-  const handleTriggerAI = async (title: string, description: string) => {
+  const handleTriggerAI = async (
+    title: string, 
+    description: string, 
+    validationInfo?: {
+      insufficient?: boolean;
+      missingContent?: number;
+      missingTitle?: number;
+    }
+  ) => {
+    // Handle insufficient content case
+    if (validationInfo?.insufficient) {
+      setIsAnalyzing(false);
+      setAiSuggestions(null);
+      
+      if ((validationInfo.missingContent || 0) > 0) {
+        setAiError(`Please add an extra ${validationInfo.missingContent} characters to start getting tips`);
+      } else if ((validationInfo.missingTitle || 0) > 0) {
+        setAiError(`Please add an extra ${validationInfo.missingTitle} characters to your title`);
+      }
+      return;
+    }
+
     if (!title.trim() || !description.trim()) return;
 
     setIsAnalyzing(true);
@@ -99,6 +120,7 @@ export default function AddQuestionPage() {
               submitButtonText="Post Your Question"
               className="space-y-6"
               onTriggerAI={handleTriggerAI}
+              aiSuggestedTags={aiSuggestions?.tags || []}
             />
           </div>
 

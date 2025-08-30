@@ -14,6 +14,12 @@ interface QuestionFormData {
   tags: string[];
 }
 
+interface TagSuggestion {
+  name: string;
+  confidence: number;
+  usage_count: number;
+}
+
 interface QuestionFormProps {
   initialData?: Partial<QuestionFormData>;
   onSubmit: (data: QuestionFormData) => Promise<void>;
@@ -21,8 +27,13 @@ interface QuestionFormProps {
   submitButtonText?: string | React.ReactNode;
   className?: string;
   // AI Integration props
-  onTriggerAI?: (title: string, description: string) => void;
+  onTriggerAI?: (title: string, description: string, validationInfo?: {
+    insufficient?: boolean;
+    missingContent?: number;
+    missingTitle?: number;
+  }) => void;
   onTagInputFocus?: () => void;
+  aiSuggestedTags?: TagSuggestion[];
 }
 
 export default function QuestionForm({
@@ -33,6 +44,7 @@ export default function QuestionForm({
   className = "",
   onTriggerAI,
   onTagInputFocus,
+  aiSuggestedTags = [],
 }: QuestionFormProps) {
   const [title, setTitle] = useState(initialData.title || "");
   const [content, setContent] = useState<any>(initialData.content || null);
@@ -45,8 +57,9 @@ export default function QuestionForm({
     if (html) setContentHtml(html);
   };
 
-  const handleAddTag = () => {
-    const trimmedTag = tagInput.trim().toLowerCase();
+  const handleAddTag = (tagToAdd?: string) => {
+    const tagValue = tagToAdd || tagInput;
+    const trimmedTag = tagValue.trim().toLowerCase();
     if (trimmedTag && !tags.includes(trimmedTag) && tags.length < 5) {
       setTags([...tags, trimmedTag]);
       setTagInput("");
@@ -66,17 +79,52 @@ export default function QuestionForm({
   };
 
   const handleTagInputKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       handleAddTag();
+    }
+    // Handle backspace to remove last tag if input is empty
+    if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+      e.preventDefault();
+      setTags(tags.slice(0, -1));
+    }
+  };
+
+  const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    // Check if user typed a space - if so, add the tag
+    if (value.endsWith(" ") && value.trim()) {
+      handleAddTag(value.trim());
+    } else {
+      setTagInput(value);
     }
   };
 
   const handleTagInputFocus = () => {
-    // Trigger AI analysis when user focuses on tags input
-    // Only if title and content are filled
-    if (title.trim() && contentHtml.trim()) {
+    // Check minimum requirements for AI analysis
+    const titleLength = title.trim().length;
+    const contentLength = contentHtml.replace(/<[^>]*>/g, '').trim().length; // Remove HTML tags for character count
+    
+    const minTitleLength = 15;
+    const minContentLength = 300;
+    
+    // Only trigger AI if both title and content meet minimum requirements
+    if (titleLength >= minTitleLength && contentLength >= minContentLength) {
       onTriggerAI?.(title, contentHtml);
+    } else {
+      // Calculate what's missing and trigger with insufficient content indication
+      const missingContent = Math.max(0, minContentLength - contentLength);
+      const missingTitle = Math.max(0, minTitleLength - titleLength);
+      
+      // Pass error info to parent component
+      if (missingContent > 0 || missingTitle > 0) {
+        onTriggerAI?.(title, contentHtml, { 
+          insufficient: true, 
+          missingContent, 
+          missingTitle 
+        });
+      }
     }
     onTagInputFocus?.();
   };
@@ -163,11 +211,12 @@ export default function QuestionForm({
           to see suggestions.
         </p>
 
-        {/* Tag Input */}
+        {/* Tag Input with chips inside */}
         <div className="relative group">
           <div className="relative border-2 border-transparent rounded group-focus-within:border-blue-500 transition-colors p-0.5">
-            <div className="relative border border-gray-300 rounded bg-white">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <div className="relative border border-gray-300 rounded bg-white min-h-[48px] flex items-center flex-wrap gap-1 p-2">
+              {/* Search Icon */}
+              <div className="flex items-center pointer-events-none">
                 <svg
                   className="h-4 w-4 text-gray-400"
                   fill="none"
@@ -182,49 +231,69 @@ export default function QuestionForm({
                   />
                 </svg>
               </div>
-              <Input
+
+              {/* Tag chips inside input */}
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex justify-between items-center px-2 py-1 bg-gray-300 text-gray-800 rounded text-sm "
+                >
+                  <span className="mr-3">{tag}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(tag)}
+                    className="flex items-center justify-center w-4 h-4 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors flex-shrink-0"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+
+              {/* Input field */}
+              <input
                 type="text"
-                placeholder="e.g. (ruby-on-rails arrays typescript)"
+                placeholder={
+                  tags.length === 0
+                    ? "e.g. (ruby-on-rails arrays typescript)"
+                    : "Add more tags..."
+                }
                 value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyPress={handleTagInputKeyPress}
+                onChange={handleTagInputChange}
+                onKeyDown={handleTagInputKeyPress}
                 onFocus={handleTagInputFocus}
-                className="pl-10 h-12 border-0 focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-0 focus-visible:outline-none"
+                className="flex-1 min-w-[200px] border-0 outline-none bg-transparent text-base px-1"
                 disabled={tags.length >= 5}
               />
             </div>
           </div>
         </div>
 
-        {/* Suggested Tags */}
-        <div className="text-xs text-gray-500 mt-2">
-          suggested tags: 
-          <span className="ml-1 text-blue-600">
-            sequelize.js, node.js, mysql, postgresql
-          </span>
-        </div>
-
-        {/* Selected Tags */}
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm border"
-              >
-                {tag}
+        {/* Suggested Tags - Only show when AI provides suggestions */}
+        {aiSuggestedTags.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
+            <span>suggested tags:</span>
+            <div className="flex flex-wrap gap-1">
+              {aiSuggestedTags.map((tag) => (
                 <button
+                  key={tag.name}
                   type="button"
-                  onClick={() => handleRemoveTag(tag)}
-                  className="hover:bg-blue-200 rounded-full p-0.5 ml-1"
+                  onClick={() => addTagFromSuggestion(tag.name)}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs hover:bg-blue-100 transition-colors"
+                  title={`${Math.round(
+                    tag.confidence * 100
+                  )}% confidence, ${tag.usage_count.toLocaleString()} uses`}
+                  disabled={
+                    tags.includes(tag.name.toLowerCase()) || tags.length >= 5
+                  }
                 >
-                  <X className="w-3 h-3" />
+                  {tag.name}
                 </button>
-              </span>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
+        {/* Selected Tags count - Remove the separate tags display since they're now inside input */}
         <div className="text-xs text-gray-500 mt-2">
           {tags.length}/5 tags selected
         </div>
