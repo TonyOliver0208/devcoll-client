@@ -1,13 +1,13 @@
 export const AUTH_ROUTES = {
   PROFILE: '/profile',
   SETTINGS: '/settings',
-  DASHBOARD: '/dashboard'
+  DASHBOARD: '/dashboard',
+  ADD_QUESTION: '/questions/add'
 } as const;
 
 export const PUBLIC_ROUTES = {
   HOME: '/',
   QUESTIONS: '/questions',
-  ADD_QUESTION: '/questions/add',
   POSTS: '/posts',
   MEDIA: '/media'
 } as const;
