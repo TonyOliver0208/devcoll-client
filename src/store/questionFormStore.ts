@@ -1,11 +1,18 @@
 "use client";
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { QuestionFormData, QuestionDraft, AIAssistantState } from "./types";
+import { QuestionFormData, AIAssistantState } from "./types";
 import { AISuggestion, MockAIService } from "@/services/mockAIService";
 import { debounce } from "lodash";
+
+interface DraftData {
+  title: string;
+  content: any;
+  contentHtml: string;
+  tags: string[];
+  updatedAt?: Date;
+}
 
 interface QuestionFormStore extends AIAssistantState {
   // Form Data
@@ -14,10 +21,12 @@ interface QuestionFormStore extends AIAssistantState {
   isSubmitting: boolean;
   
   // Draft Management
-  currentDraftId: string | null;
-  drafts: Record<string, QuestionDraft>;
+  hasDraft: boolean;
+  isDraftLoading: boolean;
+  isDraftSaving: boolean;
   autoSaveEnabled: boolean;
   lastSaved: number;
+  draftError: string | null;
   
   // Form Actions
   setTitle: (title: string) => void;
@@ -34,10 +43,9 @@ interface QuestionFormStore extends AIAssistantState {
   applyAITag: (tagName: string) => void;
   
   // Draft Actions
-  createDraft: () => string;
-  saveDraft: (draftId?: string) => void;
-  loadDraft: (draftId: string) => void;
-  deleteDraft: (draftId: string) => void;
+  loadDraft: () => Promise<void>;
+  saveDraft: () => Promise<void>;
+  discardDraft: () => Promise<void>;
   autoSave: () => void;
   debouncedAutoSave: () => void;
   
@@ -61,285 +69,342 @@ const initialAIState: AIAssistantState = {
 };
 
 export const useQuestionFormStore = create<QuestionFormStore>()(
-  persist(
-    immer((set, get) => ({
-      // Initial state
-      formData: initialFormData,
-      tagInput: "",
-      isSubmitting: false,
-      currentDraftId: null,
-      drafts: {},
-      autoSaveEnabled: true,
-      lastSaved: Date.now(),
-      ...initialAIState,
+  immer((set, get) => ({
+    // Initial state
+    formData: initialFormData,
+    tagInput: "",
+    isSubmitting: false,
+    hasDraft: false,
+    isDraftLoading: false,
+    isDraftSaving: false,
+    autoSaveEnabled: true,
+    lastSaved: Date.now(),
+    draftError: null,
+    ...initialAIState,
 
-      // Form Actions
-      setTitle: (title: string) =>
-        set((state) => {
-          state.formData.title = title;
+    // Form Actions
+    setTitle: (title: string) =>
+      set((state) => {
+        state.formData.title = title;
+        if (state.autoSaveEnabled) {
+          get().debouncedAutoSave();
+        }
+      }),
+
+    setContent: (content: any, html?: string) =>
+      set((state) => {
+        state.formData.content = content;
+        if (html) state.formData.contentHtml = html;
+        if (state.autoSaveEnabled) {
+          get().debouncedAutoSave();
+        }
+      }),
+
+    setTags: (tags: string[]) =>
+      set((state) => {
+        state.formData.tags = tags;
+        if (state.autoSaveEnabled) {
+          get().debouncedAutoSave();
+        }
+      }),
+
+    addTag: (tag: string) =>
+      set((state) => {
+        const trimmedTag = tag.trim().toLowerCase();
+        if (
+          trimmedTag &&
+          !state.formData.tags.includes(trimmedTag) &&
+          state.formData.tags.length < 5
+        ) {
+          state.formData.tags.push(trimmedTag);
+          state.tagInput = "";
           if (state.autoSaveEnabled) {
             get().debouncedAutoSave();
           }
-        }),
+        }
+      }),
 
-      setContent: (content: any, html?: string) =>
+    removeTag: (tagToRemove: string) =>
+      set((state) => {
+        state.formData.tags = state.formData.tags.filter(
+          (tag: string) => tag !== tagToRemove
+        );
+        if (state.autoSaveEnabled) {
+          get().debouncedAutoSave();
+        }
+      }),
+
+    setTagInput: (input: string) =>
+      set((state) => {
+        state.tagInput = input;
+      }),
+
+    resetForm: () =>
+      set((state) => {
+        state.formData = { ...initialFormData };
+        state.tagInput = "";
+        state.hasDraft = false;
+        state.isSubmitting = false;
+        state.draftError = null;
+        // Reset AI state
+        Object.assign(state, initialAIState);
+      }),
+
+    // AI Assistant Actions
+    triggerAIAnalysis: async (title?: string, content?: string) => {
+      const state = get();
+      const analysisTitle = title || state.formData.title;
+      const analysisContent = content || state.formData.contentHtml;
+
+      // Check if we can trigger AI
+      const { canTrigger, missingContent, missingTitle } = state.canTriggerAI();
+
+      if (!canTrigger) {
+        const errorMessages: string[] = [];
+        if (missingTitle && missingTitle > 0) {
+          errorMessages.push(`Please add an extra ${missingTitle} characters to your title`);
+        }
+        if (missingContent && missingContent > 0) {
+          errorMessages.push(`Please add an extra ${missingContent} characters to start getting tips`);
+        }
+        
         set((state) => {
-          state.formData.content = content;
-          if (html) state.formData.contentHtml = html;
-          if (state.autoSaveEnabled) {
-            get().debouncedAutoSave();
-          }
-        }),
+          state.isAnalyzing = false;
+          state.error = errorMessages.join(". ");
+          state.suggestions = null;
+        });
+        return;
+      }
 
-      setTags: (tags: string[]) =>
+      set((state) => {
+        state.isAnalyzing = true;
+        state.error = null;
+        state.suggestions = null;
+      });
+
+      try {
+        const suggestions = await MockAIService.analyzeQuestion(
+          analysisTitle,
+          analysisContent
+        );
+
         set((state) => {
-          state.formData.tags = tags;
-          if (state.autoSaveEnabled) {
-            get().debouncedAutoSave();
-          }
-        }),
-
-      addTag: (tag: string) =>
+          state.isAnalyzing = false;
+          state.suggestions = suggestions;
+          state.lastAnalyzedContent = {
+            title: analysisTitle,
+            content: analysisContent,
+          };
+        });
+      } catch (error) {
         set((state) => {
-          const trimmedTag = tag.trim().toLowerCase();
-          if (
-            trimmedTag &&
-            !state.formData.tags.includes(trimmedTag) &&
-            state.formData.tags.length < 5
-          ) {
-            state.formData.tags.push(trimmedTag);
-            state.tagInput = "";
-            if (state.autoSaveEnabled) {
-              get().debouncedAutoSave();
-            }
-          }
-        }),
+          state.isAnalyzing = false;
+          state.error = error instanceof Error ? error.message : "Failed to analyze question";
+        });
+      }
+    },
 
-      removeTag: (tagToRemove: string) =>
+    clearAISuggestions: () =>
+      set((state) => {
+        Object.assign(state, initialAIState);
+      }),
+
+    applyAITag: (tagName: string) => {
+      get().addTag(tagName);
+    },
+
+    // Server-side Draft Actions
+    loadDraft: async () => {
+      set((state) => {
+        state.isDraftLoading = true;
+        state.draftError = null;
+      });
+
+      try {
+        const response = await fetch('/api/drafts/question', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load draft');
+        }
+
+        const result = await response.json();
+        
+        if (result.data) {
+          set((state) => {
+            state.formData = {
+              title: result.data.title,
+              content: result.data.content,
+              contentHtml: result.data.contentHtml,
+              tags: result.data.tags,
+            };
+            state.hasDraft = true;
+            state.isDraftLoading = false;
+            state.lastSaved = new Date(result.data.updatedAt).getTime();
+          });
+        } else {
+          set((state) => {
+            state.hasDraft = false;
+            state.isDraftLoading = false;
+          });
+        }
+      } catch (error) {
         set((state) => {
-          state.formData.tags = state.formData.tags.filter(
-            (tag: string) => tag !== tagToRemove
-          );
-          if (state.autoSaveEnabled) {
-            get().debouncedAutoSave();
-          }
-        }),
+          state.isDraftLoading = false;
+          state.draftError = error instanceof Error ? error.message : 'Failed to load draft';
+        });
+      }
+    },
 
-      setTagInput: (input: string) =>
+    saveDraft: async () => {
+      const state = get();
+      
+      // Don't save if form is empty
+      if (!state.formData.title.trim() && !state.formData.contentHtml.trim() && state.formData.tags.length === 0) {
+        return;
+      }
+
+      set((state) => {
+        state.isDraftSaving = true;
+        state.draftError = null;
+      });
+
+      try {
+        const response = await fetch('/api/drafts/question', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: state.formData.title,
+            content: state.formData.content,
+            contentHtml: state.formData.contentHtml,
+            tags: state.formData.tags,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save draft');
+        }
+
+        const result = await response.json();
+
         set((state) => {
-          state.tagInput = input;
-        }),
+          state.isDraftSaving = false;
+          state.hasDraft = true;
+          state.lastSaved = new Date(result.updatedAt).getTime();
+        });
+      } catch (error) {
+        set((state) => {
+          state.isDraftSaving = false;
+          state.draftError = error instanceof Error ? error.message : 'Failed to save draft';
+        });
+      }
+    },
 
-      resetForm: () =>
+    discardDraft: async () => {
+      set((state) => {
+        state.isDraftSaving = true;
+        state.draftError = null;
+      });
+
+      try {
+        const response = await fetch('/api/drafts/question', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to discard draft');
+        }
+
         set((state) => {
           state.formData = { ...initialFormData };
           state.tagInput = "";
-          state.currentDraftId = null;
-          state.isSubmitting = false;
+          state.hasDraft = false;
+          state.isDraftSaving = false;
+          state.lastSaved = Date.now();
           // Reset AI state
           Object.assign(state, initialAIState);
-        }),
-
-      // AI Assistant Actions
-      triggerAIAnalysis: async (title?: string, content?: string) => {
-        const state = get();
-        const analysisTitle = title || state.formData.title;
-        const analysisContent = content || state.formData.contentHtml;
-
-        // Check if we can trigger AI
-        const { canTrigger, missingContent, missingTitle } = state.canTriggerAI();
-
-        if (!canTrigger) {
-          const errorMessages: string[] = [];
-          if (missingTitle && missingTitle > 0) {
-            errorMessages.push(`Please add an extra ${missingTitle} characters to your title`);
-          }
-          if (missingContent && missingContent > 0) {
-            errorMessages.push(`Please add an extra ${missingContent} characters to start getting tips`);
-          }
-          
-          set((state) => {
-            state.isAnalyzing = false;
-            state.error = errorMessages.join(". ");
-            state.suggestions = null;
-          });
-          return;
-        }
-
+        });
+      } catch (error) {
         set((state) => {
-          state.isAnalyzing = true;
-          state.error = null;
-          state.suggestions = null;
+          state.isDraftSaving = false;
+          state.draftError = error instanceof Error ? error.message : 'Failed to discard draft';
         });
+      }
+    },
 
-        try {
-          const suggestions = await MockAIService.analyzeQuestion(
-            analysisTitle,
-            analysisContent
-          );
+    autoSave: () => {
+      const state = get();
+      if (!state.autoSaveEnabled || state.isDraftSaving) return;
 
-          set((state) => {
-            state.isAnalyzing = false;
-            state.suggestions = suggestions;
-            state.lastAnalyzedContent = {
-              title: analysisTitle,
-              content: analysisContent,
-            };
-          });
-        } catch (error) {
-          set((state) => {
-            state.isAnalyzing = false;
-            state.error = error instanceof Error ? error.message : "Failed to analyze question";
-          });
-        }
-      },
+      // Only auto-save if there's actual content
+      if (state.formData.title.trim() || state.formData.contentHtml.trim() || state.formData.tags.length > 0) {
+        get().saveDraft();
+      }
+    },
 
-      clearAISuggestions: () =>
-        set((state) => {
-          Object.assign(state, initialAIState);
-        }),
+    // Validation
+    validateForm: () => {
+      const state = get();
+      const errors: string[] = [];
+      let isValid = true;
 
-      applyAITag: (tagName: string) => {
-        get().addTag(tagName);
-      },
+      if (!state.formData.title.trim()) {
+        errors.push("Title is required");
+        isValid = false;
+      } else if (state.formData.title.trim().length < 15) {
+        errors.push("Title must be at least 15 characters");
+        isValid = false;
+      }
 
-      // Draft Actions
-      createDraft: () => {
-        const draftId = `draft-${Date.now()}`;
-        const state = get();
-        
-        set((stateDraft) => {
-          stateDraft.currentDraftId = draftId;
-          stateDraft.drafts[draftId] = {
-            id: draftId,
-            ...state.formData,
-            lastModified: Date.now(),
-            isAutoSaved: false,
-          };
-        });
-        
-        return draftId;
-      },
-
-      saveDraft: (draftId?: string) => {
-        const state = get();
-        const targetDraftId = draftId || state.currentDraftId;
-        
-        if (!targetDraftId) return;
-
-        set((stateDraft) => {
-          stateDraft.drafts[targetDraftId] = {
-            id: targetDraftId,
-            ...state.formData,
-            lastModified: Date.now(),
-            isAutoSaved: true,
-          };
-          stateDraft.lastSaved = Date.now();
-        });
-      },
-
-      loadDraft: (draftId: string) => {
-        const state = get();
-        const draft = state.drafts[draftId];
-        
-        if (!draft) return;
-
-        set((stateDraft) => {
-          stateDraft.formData = {
-            title: draft.title,
-            content: draft.content,
-            contentHtml: draft.contentHtml,
-            tags: [...draft.tags],
-          };
-          stateDraft.currentDraftId = draftId;
-          stateDraft.tagInput = "";
-        });
-      },
-
-      deleteDraft: (draftId: string) =>
-        set((state) => {
-          delete state.drafts[draftId];
-          if (state.currentDraftId === draftId) {
-            state.currentDraftId = null;
-          }
-        }),
-
-      autoSave: () => {
-        const state = get();
-        if (!state.autoSaveEnabled) return;
-
-        if (!state.currentDraftId) {
-          // Create new draft if none exists
-          const draftId = get().createDraft();
-          get().saveDraft(draftId);
-        } else {
-          get().saveDraft();
-        }
-      },
-
-      // Validation
-      validateForm: () => {
-        const state = get();
-        const errors: string[] = [];
-        let isValid = true;
-
-        if (!state.formData.title.trim()) {
-          errors.push("Title is required");
-          isValid = false;
-        } else if (state.formData.title.trim().length < 15) {
-          errors.push("Title must be at least 15 characters");
+      if (!state.formData.content) {
+        errors.push("Content is required");
+        isValid = false;
+      } else {
+        const contentText = state.formData.contentHtml.replace(/<[^>]*>/g, '').trim();
+        if (contentText.length < 30) {
+          errors.push("Content must be at least 30 characters");
           isValid = false;
         }
+      }
 
-        if (!state.formData.content) {
-          errors.push("Content is required");
-          isValid = false;
-        } else {
-          const contentText = state.formData.contentHtml.replace(/<[^>]*>/g, '').trim();
-          if (contentText.length < 30) {
-            errors.push("Content must be at least 30 characters");
-            isValid = false;
-          }
-        }
+      if (state.formData.tags.length === 0) {
+        errors.push("At least one tag is required");
+        isValid = false;
+      }
 
-        if (state.formData.tags.length === 0) {
-          errors.push("At least one tag is required");
-          isValid = false;
-        }
+      return { isValid, errors };
+    },
 
-        return { isValid, errors };
-      },
+    canTriggerAI: () => {
+      const state = get();
+      const titleLength = state.formData.title.trim().length;
+      const contentLength = state.formData.contentHtml.replace(/<[^>]*>/g, '').trim().length;
 
-      canTriggerAI: () => {
-        const state = get();
-        const titleLength = state.formData.title.trim().length;
-        const contentLength = state.formData.contentHtml.replace(/<[^>]*>/g, '').trim().length;
+      const minTitleLength = 15;
+      const minContentLength = 300;
 
-        const minTitleLength = 15;
-        const minContentLength = 300;
+      const missingTitle = Math.max(0, minTitleLength - titleLength);
+      const missingContent = Math.max(0, minContentLength - contentLength);
 
-        const missingTitle = Math.max(0, minTitleLength - titleLength);
-        const missingContent = Math.max(0, minContentLength - contentLength);
+      return {
+        canTrigger: titleLength >= minTitleLength && contentLength >= minContentLength,
+        missingContent: missingContent > 0 ? missingContent : undefined,
+        missingTitle: missingTitle > 0 ? missingTitle : undefined,
+      };
+    },
 
-        return {
-          canTrigger: titleLength >= minTitleLength && contentLength >= minContentLength,
-          missingContent: missingContent > 0 ? missingContent : undefined,
-          missingTitle: missingTitle > 0 ? missingTitle : undefined,
-        };
-      },
-
-      // Debounced auto-save
-      debouncedAutoSave: debounce(() => {
-        get().autoSave();
-      }, 1000),
-    })),
-    {
-      name: "question-form-storage",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        drafts: state.drafts,
-        autoSaveEnabled: state.autoSaveEnabled,
-      }),
-    }
-  )
+    // Debounced auto-save
+    debouncedAutoSave: debounce(() => {
+      get().autoSave();
+    }, 1000),
+  }))
 );
