@@ -36,6 +36,11 @@ export default function QuestionForm({
     isAnalyzing,
     suggestions,
     error: aiError,
+    hasDraft,
+    isDraftLoading,
+    isDraftSaving,
+    lastSaved,
+    draftError,
     setTitle,
     setContent,
     addTag,
@@ -45,10 +50,26 @@ export default function QuestionForm({
     applyAITag,
     validateForm,
     canTriggerAI,
+    loadDraft,
+    discardDraft,
   } = useQuestionFormStore();
+
+  const [formErrors, setFormErrors] = React.useState<string[]>([]);
 
   const handleContentChange = (json: any, html?: string) => {
     setContent(json, html);
+    // Clear errors when user starts typing
+    if (formErrors.length > 0) {
+      setFormErrors([]);
+    }
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTitle(e.target.value);
+    // Clear errors when user starts typing
+    if (formErrors.length > 0) {
+      setFormErrors([]);
+    }
   };
 
   const handleAddTag = (tagToAdd?: string) => {
@@ -83,15 +104,32 @@ export default function QuestionForm({
     await triggerAIAnalysis();
   };
 
+  const handleDiscardDraft = async () => {
+    if (
+      window.confirm(
+        "Are you sure you want to discard your draft? This action cannot be undone."
+      )
+    ) {
+      await discardDraft();
+    }
+  };
+
+  // Load draft on component mount
+  React.useEffect(() => {
+    loadDraft();
+  }, [loadDraft]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const { isValid, errors } = validateForm();
     if (!isValid) {
-      alert(errors.join(". "));
+      setFormErrors(errors);
       return;
     }
 
+    // Clear errors if validation passes
+    setFormErrors([]);
     await onSubmit(formData);
   };
 
@@ -99,6 +137,41 @@ export default function QuestionForm({
 
   return (
     <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
+      {/* Form Errors */}
+      {formErrors.length > 0 && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg
+                className="w-5 h-5 text-red-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Please fix the following errors:
+              </h3>
+              <div className="mt-2">
+                <ul className="text-sm text-red-700 space-y-1">
+                  {formErrors.map((error, index) => (
+                    <li key={index}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Title */}
       <div className="space-y-2">
         <Label
@@ -119,7 +192,7 @@ export default function QuestionForm({
               type="text"
               placeholder="e.g. How to center a div in CSS?"
               value={formData.title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={handleTitleChange}
               className="text-base h-12 border-gray-300 focus:border-gray-300 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-gray-300 focus-visible:outline-none"
               maxLength={150}
               required
@@ -233,7 +306,8 @@ export default function QuestionForm({
                     tag.confidence * 100
                   )}% confidence, ${tag.usage_count.toLocaleString()} uses`}
                   disabled={
-                    formData.tags.includes(tag.name.toLowerCase()) || formData.tags.length >= 5
+                    formData.tags.includes(tag.name.toLowerCase()) ||
+                    formData.tags.length >= 5
                   }
                 >
                   {tag.name}
@@ -248,6 +322,68 @@ export default function QuestionForm({
           {formData.tags.length}/5 tags selected
         </div>
       </div>
+
+      {/* Draft Status and Actions */}
+      {(hasDraft || isDraftSaving || draftError) && (
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+          <div className="flex items-center gap-2">
+            {isDraftSaving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-gray-600">Saving draft...</span>
+              </>
+            ) : draftError ? (
+              <>
+                <svg
+                  className="w-4 h-4 text-red-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                <span className="text-sm text-red-600">{draftError}</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-4 h-4 text-green-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span className="text-sm text-gray-600">
+                  Draft saved {new Date(lastSaved).toLocaleTimeString()}
+                </span>
+              </>
+            )}
+          </div>
+
+          {hasDraft && !isDraftSaving && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDiscardDraft}
+              className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 focus:ring-2 focus:ring-red-500 focus:ring-opacity-20"
+            >
+              Discard draft
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Submit Button */}
       <div className="pt-2">

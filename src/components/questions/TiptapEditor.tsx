@@ -308,6 +308,16 @@ const TiptapEditor = ({
     };
   }, [editor]);
 
+  // Sync editor content with value prop (for draft loading)
+  useEffect(() => {
+    if (editor && value !== undefined) {
+      const currentContent = editor.getHTML();
+      if (currentContent !== value) {
+        editor.commands.setContent(value, { emitUpdate: false });
+      }
+    }
+  }, [editor, value]);
+
   const setLink = useCallback(() => {
     if (!editor) return;
 
