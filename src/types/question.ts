@@ -14,6 +14,10 @@ export interface Question {
   hasAcceptedAnswer?: boolean;
   bountyAmount?: number;
   excerpt?: string;
+  // User interaction states
+  isBookmarked?: boolean;
+  isWatching?: boolean;
+  userVote?: 'up' | 'down' | null;
 }
 
 export interface QuestionFilter {

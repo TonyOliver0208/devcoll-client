@@ -7,16 +7,21 @@ import QuestionForm from "@/components/questions/QuestionForm";
 import AIAssistantPanel from "@/components/questions/AIAssistantPanel";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { MockAIService, AISuggestion } from "@/services/mockAIService";
+import { useQuestionFormStore } from "@/store";
 
 export default function AddQuestionPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // AI Assistant states
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const {
+    isAnalyzing,
+    suggestions,
+    error: aiError,
+    triggerAIAnalysis,
+    clearAISuggestions,
+    applyAITag,
+    resetForm,
+  } = useQuestionFormStore();
 
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
@@ -24,6 +29,9 @@ export default function AddQuestionPage() {
     try {
       // TODO: Implement API call to create question
       console.log("Creating question:", data);
+
+      // Reset form after successful submission
+      resetForm();
 
       // For now, just redirect back to questions
       router.push("/questions");
@@ -35,54 +43,12 @@ export default function AddQuestionPage() {
     }
   };
 
-  const handleTriggerAI = async (
-    title: string, 
-    description: string, 
-    validationInfo?: {
-      insufficient?: boolean;
-      missingContent?: number;
-      missingTitle?: number;
-    }
-  ) => {
-    // Handle insufficient content case
-    if (validationInfo?.insufficient) {
-      setIsAnalyzing(false);
-      setAiSuggestions(null);
-      
-      if ((validationInfo.missingContent || 0) > 0) {
-        setAiError(`Please add an extra ${validationInfo.missingContent} characters to start getting tips`);
-      } else if ((validationInfo.missingTitle || 0) > 0) {
-        setAiError(`Please add an extra ${validationInfo.missingTitle} characters to your title`);
-      }
-      return;
-    }
-
-    if (!title.trim() || !description.trim()) return;
-
-    setIsAnalyzing(true);
-    setAiError(null);
-
-    try {
-      const suggestions = await MockAIService.analyzeQuestion(title, description);
-      setAiSuggestions(suggestions);
-    } catch (error) {
-      console.error('AI analysis failed:', error);
-      setAiError('Failed to analyze question. Please try again.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleRefreshAI = () => {
-    // Reset suggestions to allow re-analysis
-    setAiSuggestions(null);
-    setAiError(null);
+  const handleRefreshAI = async () => {
+    await triggerAIAnalysis();
   };
 
   const handleApplyTag = (tagName: string) => {
-    // This will need to be connected to the form's addTag function
-    console.log('Apply tag:', tagName);
-    // TODO: Connect this to QuestionForm's tag addition functionality
+    applyAITag(tagName);
   };
 
   return (
@@ -119,8 +85,7 @@ export default function AddQuestionPage() {
               isSubmitting={isSubmitting}
               submitButtonText="Post Your Question"
               className="space-y-6"
-              onTriggerAI={handleTriggerAI}
-              aiSuggestedTags={aiSuggestions?.tags || []}
+              aiSuggestedTags={suggestions?.tags || []}
             />
           </div>
 
@@ -139,7 +104,7 @@ export default function AddQuestionPage() {
 
                 <AIAssistantPanel
                   isAnalyzing={isAnalyzing}
-                  suggestions={aiSuggestions}
+                  suggestions={suggestions}
                   error={aiError}
                   onRefresh={handleRefreshAI}
                   onApplyTag={handleApplyTag}
