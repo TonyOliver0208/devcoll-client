@@ -17,16 +17,19 @@ src/store/
 ## 🏗️ Architecture Principles
 
 ### 1. **Domain-Driven Design**
+
 - Each store manages a specific domain (Questions, Tags, User Interactions)
 - Clear separation of concerns between different business logic areas
 - Follows enterprise patterns used by companies like Slack, Discord, and Stack Overflow
 
 ### 2. **Scalable State Management**
+
 - **Immer Integration**: Immutable state updates with mutable syntax
 - **Persistence**: Critical user data (drafts, interactions) persisted to localStorage
 - **Performance**: Optimized with debounced operations and selective persistence
 
 ### 3. **Developer Experience**
+
 - **TypeScript First**: Fully typed interfaces for all store methods and state
 - **Devtools Support**: Debug stores in development environment
 - **Hot Reload**: State preserved during development
@@ -34,9 +37,11 @@ src/store/
 ## 🎯 Store Responsibilities
 
 ### `useQuestionFormStore`
+
 **Purpose**: Manages question creation form, AI assistant, and draft functionality
 
 **Key Features:**
+
 - ✅ **Form State**: Title, content, tags with validation
 - ✅ **AI Integration**: Analysis triggers, suggestions, character validation
 - ✅ **Draft System**: Auto-save, manual save, load, delete drafts
@@ -44,20 +49,18 @@ src/store/
 - ✅ **Persistence**: Drafts saved to localStorage
 
 **Usage Example:**
+
 ```typescript
-const {
-  formData,
-  setTitle,
-  addTag,
-  triggerAIAnalysis,
-  saveDraft
-} = useQuestionFormStore();
+const { formData, setTitle, addTag, triggerAIAnalysis, saveDraft } =
+  useQuestionFormStore();
 ```
 
 ### `useQuestionsStore`
+
 **Purpose**: Manages questions feed, filtering, and pagination
 
 **Key Features:**
+
 - ✅ **Questions Management**: CRUD operations for questions
 - ✅ **Filtering**: newest, active, unanswered, bountied
 - ✅ **Search**: Real-time search across titles and tags
@@ -65,18 +68,22 @@ const {
 - ✅ **Interactions**: Vote, bookmark, watch questions
 
 ### `useTagsStore`
+
 **Purpose**: Manages tags data, user followed tags, and tag interactions
 
 **Key Features:**
+
 - ✅ **Tags Data**: All tags, trending tags, user tags
 - ✅ **Filtering**: Popular, name, new tags
 - ✅ **Search**: Tag name and description search
 - ✅ **User Tags**: Follow/unfollow functionality
 
 ### `useUserInteractionsStore`
+
 **Purpose**: Tracks user interactions across the platform
 
 **Key Features:**
+
 - ✅ **Voting System**: Question and answer votes with toggle logic
 - ✅ **Bookmarks**: Save questions and answers
 - ✅ **Following**: Tag follows and question watching
@@ -85,16 +92,19 @@ const {
 ## 🔄 Data Flow Patterns
 
 ### 1. **Question Creation Flow**
+
 ```
 User Input → QuestionFormStore → AI Analysis → Draft Save → Submit → QuestionsStore
 ```
 
 ### 2. **Question Interaction Flow**
+
 ```
 User Action → UserInteractionsStore → QuestionsStore Update → UI Refresh
 ```
 
 ### 3. **Tag Management Flow**
+
 ```
 Tag Filter → TagsStore → Filtered Results → User Follow → UserInteractionsStore
 ```
@@ -103,16 +113,17 @@ Tag Filter → TagsStore → Filtered Results → User Follow → UserInteractio
 
 ### **Compared to useState Approach:**
 
-| Aspect | useState (Old) | Zustand (New) |
-|--------|---------------|---------------|
-| **State Sharing** | Prop drilling | Direct access |
-| **Persistence** | Manual localStorage | Automatic persistence |
-| **Devtools** | No debugging tools | Built-in devtools |
-| **Performance** | Manual optimization | Automatic optimization |
-| **Scalability** | Becomes unwieldy | Scales naturally |
-| **Testing** | Complex mocking | Easy state injection |
+| Aspect            | useState (Old)      | Zustand (New)          |
+| ----------------- | ------------------- | ---------------------- |
+| **State Sharing** | Prop drilling       | Direct access          |
+| **Persistence**   | Manual localStorage | Automatic persistence  |
+| **Devtools**      | No debugging tools  | Built-in devtools      |
+| **Performance**   | Manual optimization | Automatic optimization |
+| **Scalability**   | Becomes unwieldy    | Scales naturally       |
+| **Testing**       | Complex mocking     | Easy state injection   |
 
 ### **Real-World Benefits:**
+
 1. **Draft Auto-Save**: Like Google Docs, automatically saves user progress
 2. **Cross-Component State**: AI suggestions available across form components
 3. **User Preferences**: Persisted interactions survive page refreshes
@@ -121,6 +132,7 @@ Tag Filter → TagsStore → Filtered Results → User Follow → UserInteractio
 ## 🎨 Usage Examples
 
 ### **Creating a Question with AI Assistance**
+
 ```typescript
 function QuestionForm() {
   const {
@@ -130,7 +142,7 @@ function QuestionForm() {
     addTag,
     triggerAIAnalysis,
     suggestions,
-    canTriggerAI
+    canTriggerAI,
   } = useQuestionFormStore();
 
   const handleTitleChange = (title: string) => {
@@ -148,13 +160,14 @@ function QuestionForm() {
 ```
 
 ### **Managing User Interactions**
+
 ```typescript
 function QuestionCard({ question }) {
   const { voteQuestion, isQuestionVoted } = useUserInteractionsStore();
-  
+
   const currentVote = isQuestionVoted(question.id);
-  
-  const handleVote = (voteType: 'up' | 'down') => {
+
+  const handleVote = (voteType: "up" | "down") => {
     voteQuestion(question.id, voteType);
   };
 }
@@ -163,16 +176,19 @@ function QuestionCard({ question }) {
 ## 🔒 Security & Performance
 
 ### **Data Sanitization**
+
 - All user inputs validated and sanitized
 - HTML content properly escaped in editor
 - Tag inputs normalized and limited
 
 ### **Performance Optimizations**
+
 - **Debounced Operations**: Auto-save, search, AI analysis
 - **Selective Updates**: Only relevant components re-render
 - **Lazy Loading**: Stores initialized only when needed
 
 ### **Memory Management**
+
 - **Cleanup**: Automatic cleanup on component unmount
 - **Limits**: Draft limits, tag limits, interaction limits
 - **GC Friendly**: Proper object disposal
@@ -180,19 +196,21 @@ function QuestionCard({ question }) {
 ## 🧪 Testing Strategy
 
 ### **Store Testing**
-```typescript
-import { useQuestionFormStore } from '@/store';
 
-test('should save draft automatically', () => {
+```typescript
+import { useQuestionFormStore } from "@/store";
+
+test("should save draft automatically", () => {
   const store = useQuestionFormStore.getState();
-  store.setTitle('Test Question');
-  
+  store.setTitle("Test Question");
+
   // Verify auto-save triggered
   expect(store.drafts).toHaveProperty(store.currentDraftId);
 });
 ```
 
 ### **Integration Testing**
+
 - Form submission with AI suggestions
 - Draft save/restore functionality
 - Cross-store interactions (votes affecting question display)
@@ -200,6 +218,7 @@ test('should save draft automatically', () => {
 ## 🚀 Migration Benefits
 
 ### **Before (useState)**
+
 - ❌ 15+ useState hooks across components
 - ❌ Complex prop drilling for AI state
 - ❌ Manual localStorage management
@@ -207,6 +226,7 @@ test('should save draft automatically', () => {
 - ❌ Difficult to test
 
 ### **After (Zustand)**
+
 - ✅ 4 focused, domain-specific stores
 - ✅ Direct state access across components
 - ✅ Automatic persistence for critical data
