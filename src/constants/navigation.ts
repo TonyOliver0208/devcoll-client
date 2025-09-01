@@ -8,7 +8,7 @@ export const sidebarItems: NavigationItem[] = [
   { icon: Home, label: "Home", href: "/" },
   { icon: HelpCircle, label: "Questions", href: "/questions" },
   { icon: Tag, label: "Tags", href: "/tags" },
-  { icon: Bookmark, label: "Saves", href: "/saves" },
+  { icon: Bookmark, label: "Saves", href: "/profile?tab=saves" },
   { icon: Trophy, label: "Challenges", badge: "1", href: "/challenges" },
   { icon: MessageSquare, label: "Chat", href: "/chat" },
   { icon: FileText, label: "Articles", href: "/articles" },

@@ -3,6 +3,7 @@ export { useQuestionFormStore } from './questionFormStore';
 export { useQuestionsStore } from './questionsStore';
 export { useTagsStore } from './tagsStore';
 export { useUserInteractionsStore } from './userInteractionsStore';
+export { useSavedItemsStore, useSavedItems } from './savedItemsStore';
 
 // Store types
 export type {
@@ -14,6 +15,11 @@ export type {
   UserInteractionsState,
   DraftState
 } from './types';
+
+export type {
+  SavedItem,
+  SavedList
+} from './savedItemsStore';
 
 // Store utilities and helpers
 export const storeUtils = {
