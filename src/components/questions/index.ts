@@ -19,4 +19,4 @@ export { default as QuestionSection } from './QuestionSection';
 export { default as AnswerSection } from './AnswerSection';
 export { default as YourAnswer } from './YourAnswer';
 export { default as ContentDisplay } from './ContentDisplay';
-export { VoteControls, ActionButtons, AuthorCard } from './PostControls';
+export { VoteControls, ActionButtons, AuthorCard } from './VoteControls';
