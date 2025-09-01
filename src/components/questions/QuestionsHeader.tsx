@@ -52,11 +52,11 @@ export function PostsQuestionsHeader() {
           </Link>
         </div>
       </div>
-      <Link href="/questions/add">
+      {/* <Link href="/questions/add">
         <Button className="bg-blue-600 hover:bg-blue-700 text-sm sm:text-base px-4 sm:px-6">
           Ask Question
         </Button>
-      </Link>
+      </Link> */}
     </div>
   );
 }

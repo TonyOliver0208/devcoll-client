@@ -4,14 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import ContentDisplay from "./ContentDisplay";
-import { VoteControls, ActionButtons, AuthorCard } from "./PostControls";
+import { VoteControls, ActionButtons, AuthorCard } from "./VoteControls";
 import CommentList from "./CommentList";
 import type { Question } from "@/types/questions";
 
 interface QuestionSectionProps {
   question: Question;
   onVote?: (type: 'up' | 'down') => void;
-  onBookmark?: () => void;
   onShare?: () => void;
   onEdit?: () => void;
   onFlag?: () => void;
@@ -21,7 +20,6 @@ interface QuestionSectionProps {
 const QuestionSection = ({ 
   question,
   onVote,
-  onBookmark,
   onShare,
   onEdit,
   onFlag,
@@ -41,10 +39,23 @@ const QuestionSection = ({
             votes={question.votes} 
             onUpvote={handleUpvote}
             onDownvote={handleDownvote}
-            onBookmark={onBookmark}
             isUpvoted={question.userVote === 'up'}
             isDownvoted={question.userVote === 'down'}
             isBookmarked={question.isBookmarked}
+            questionData={{
+              id: question.id.toString(),
+              title: question.title,
+              content: question.content || question.excerpt || "",
+              tags: question.tags,
+              votes: question.votes,
+              views: question.views?.toString() || "0",
+              answers: question.answers,
+              author: {
+                name: question.author.name,
+                reputation: question.author.reputation.toString(),
+                avatar: question.author.avatar
+              }
+            }}
           />
           
           <div className="flex-1 min-w-0">

@@ -27,14 +27,6 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
     }
   };
 
-  const handleQuestionBookmark = async () => {
-    try {
-      console.log(`Bookmarking question ${question.id}`);
-    } catch (error) {
-      console.error('Failed to bookmark:', error);
-    }
-  };
-
   const handleQuestionShare = () => {
     const url = window.location.href;
     if (navigator.share) {
@@ -58,14 +50,6 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
       console.log(`Voting ${type} on answer ${answerId}`);
     } catch (error) {
       console.error('Failed to vote on answer:', error);
-    }
-  };
-
-  const handleAnswerBookmark = async (answerId: number) => {
-    try {
-      console.log(`Bookmarking answer ${answerId}`);
-    } catch (error) {
-      console.error('Failed to bookmark answer:', error);
     }
   };
 
@@ -156,7 +140,6 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
               <QuestionSection
                 question={question}
                 onVote={handleQuestionVote}
-                onBookmark={handleQuestionBookmark}
                 onShare={handleQuestionShare}
                 onEdit={handleQuestionEdit}
                 onFlag={handleQuestionFlag}
@@ -169,7 +152,6 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
                   answers={question.answers_data}
                   totalAnswers={question.answers}
                   onVote={handleAnswerVote}
-                  onBookmark={handleAnswerBookmark}
                   onAccept={handleAnswerAccept}
                   onShare={handleAnswerShare}
                   onEdit={handleAnswerEdit}

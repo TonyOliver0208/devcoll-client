@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ContentDisplay from "./ContentDisplay";
-import { VoteControls, ActionButtons, AuthorCard } from "./PostControls";
+import { VoteControls, ActionButtons, AuthorCard } from "./VoteControls";
 import CommentList from "./CommentList";
 import type { Answer } from "@/types/questions";
 
@@ -14,7 +14,6 @@ interface AnswerSectionProps {
   answers: Answer[];
   totalAnswers: number;
   onVote?: (answerId: number, type: 'up' | 'down') => void;
-  onBookmark?: (answerId: number) => void;
   onAccept?: (answerId: number) => void;
   onShare?: (answerId: number) => void;
   onEdit?: (answerId: number) => void;
@@ -29,7 +28,6 @@ const AnswerSection = ({
   answers,
   totalAnswers,
   onVote,
-  onBookmark,
   onAccept,
   onShare,
   onEdit,
@@ -103,7 +101,6 @@ const AnswerSection = ({
             key={answer.id}
             answer={answer}
             onVote={(type: 'up' | 'down') => handleVote(answer.id, type)}
-            onBookmark={() => onBookmark?.(answer.id)}
             onAccept={() => onAccept?.(answer.id)}
             onShare={() => onShare?.(answer.id)}
             onEdit={() => onEdit?.(answer.id)}
@@ -121,7 +118,6 @@ const AnswerSection = ({
 interface AnswerCardProps {
   answer: Answer;
   onVote: (type: 'up' | 'down') => void;
-  onBookmark: () => void;
   onAccept: () => void;
   onShare: () => void;
   onEdit: () => void;
@@ -134,7 +130,6 @@ interface AnswerCardProps {
 const AnswerCard = ({
   answer,
   onVote,
-  onBookmark,
   onAccept,
   onShare,
   onEdit,
@@ -156,10 +151,23 @@ const AnswerCard = ({
                 isAccepted={answer.isAccepted}
                 onUpvote={() => onVote('up')}
                 onDownvote={() => onVote('down')}
-                onBookmark={onBookmark}
                 isUpvoted={answer.userVote === 'up'}
                 isDownvoted={answer.userVote === 'down'}
                 isBookmarked={answer.isBookmarked}
+                questionData={{
+                  id: answer.id.toString(),
+                  title: `Answer to: ${answer.content ? answer.content.substring(0, 50) + '...' : 'Question'}`,
+                  content: answer.content,
+                  tags: [], // Answers don't have tags, inherit from question
+                  votes: answer.votes,
+                  views: "0", // Answers don't have separate view counts
+                  answers: 1,
+                  author: {
+                    name: answer.author.name,
+                    reputation: answer.author.reputation.toString(),
+                    avatar: answer.author.avatar
+                  }
+                }}
               />
               
               {/* Accept Answer Button */}
