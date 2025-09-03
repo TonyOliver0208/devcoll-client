@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { LucideIcon } from "lucide-react";
 
 interface NavigationItemProps {
@@ -18,11 +18,20 @@ export default function NavigationItem({
   badge,
 }: NavigationItemProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  // Parse the href to handle query parameters
+  const [hrefPath, hrefQuery] = href.split('?');
+  const currentUrl = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '');
   
   // Check for exact match or if we're on a sub-route
-  const isActive = pathname === href || 
+  const isActive = currentUrl === href ||
+    pathname === href || 
     (href === '/questions' && pathname.startsWith('/questions/')) ||
-    (href === '/' && pathname === '/');
+    (href === '/' && pathname === '/') ||
+    // Special case for profile with tabs
+    (hrefPath === '/profile' && pathname === '/profile' && 
+     hrefQuery && searchParams.get('tab') === new URLSearchParams(hrefQuery).get('tab'));
   
   return (
     <Link

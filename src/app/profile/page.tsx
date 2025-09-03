@@ -20,13 +20,22 @@ export default function Profile() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("profile");
   
-  // Handle tab query parameter
+  // Initialize with URL param if available, otherwise default to profile
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    return (tabParam && ['profile', 'activity', 'saves', 'settings'].includes(tabParam)) 
+      ? tabParam 
+      : "profile";
+  });
+  
+  // Handle tab query parameter changes
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam && ['profile', 'activity', 'saves', 'settings'].includes(tabParam)) {
       setActiveTab(tabParam);
+    } else if (!tabParam) {
+      setActiveTab("profile");
     }
   }, [searchParams]);
 
@@ -200,12 +209,13 @@ function ProfileSidebar({
         <nav className="space-y-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === tab.id
+                  isActive
                     ? "bg-orange-100 text-orange-700 border-l-4 border-orange-500"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
