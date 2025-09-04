@@ -101,10 +101,12 @@ export const useSavedItemsStore = create<SavedItemsState>()(
     },
 
     // Save an item to a list
-    saveItem: async (itemData: any, listId = "for-later") => {
+    saveItem: async (itemData: any, listId?: string) => {
       // TODO: Enable API calls when backend is ready
       console.warn("Save item functionality disabled - backend not available");
       return;
+      
+      const targetListId = listId || "for-later";
       
       set((state) => {
         state.isLoading = true;
@@ -115,7 +117,7 @@ export const useSavedItemsStore = create<SavedItemsState>()(
         const savedItem = await savedItemsService.saveItem({
           itemType: itemData.type || 'question',
           itemId: itemData.itemId || itemData.id,
-          listId,
+          listId: targetListId,
           title: itemData.title,
           content: itemData.content,
           tags: itemData.tags || [],
@@ -134,8 +136,8 @@ export const useSavedItemsStore = create<SavedItemsState>()(
         set((state) => {
           state.savedItems[savedItem.id] = savedItem;
           // Update list item count if list is loaded
-          if (state.savedLists[listId]) {
-            state.savedLists[listId].itemCount++;
+          if (state.savedLists[targetListId]) {
+            state.savedLists[targetListId].itemCount++;
           }
           state.isLoading = false;
         });

@@ -19,7 +19,7 @@ export type {
 export type {
   SavedItem,
   SavedList
-} from './savedItemsStore';
+} from '@/services/savedItems';
 
 // Store utilities and helpers
 export const storeUtils = {
