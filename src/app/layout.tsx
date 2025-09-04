@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NextAuthProvider from "@/providers/nextauth-provider";
+import QueryProvider from "@/providers/query-provider";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "DevColl - Forum For Dev Platform",
@@ -16,7 +18,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased font-stack">
-        <NextAuthProvider>{children}</NextAuthProvider>
+        <ErrorBoundary>
+          <NextAuthProvider>
+            <QueryProvider>
+              {children}
+            </QueryProvider>
+          </NextAuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

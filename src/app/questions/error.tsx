@@ -2,8 +2,9 @@
 
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, RefreshCw, ArrowLeft } from 'lucide-react'
+import { AlertCircle, RefreshCw, ArrowLeft, Wifi } from 'lucide-react'
 import Link from 'next/link'
+import { getErrorMessage, isNetworkError } from '@/lib/errors'
 
 export default function QuestionsError({
   error,
@@ -13,19 +14,29 @@ export default function QuestionsError({
   reset: () => void
 }) {
   useEffect(() => {
+    // Simple logging - backend handles detailed error tracking
     console.error('Questions Error:', error)
   }, [error])
+
+  const errorMessage = getErrorMessage(error)
+  const isOffline = isNetworkError(error)
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full text-center">
         <div className="mb-8">
-          <AlertCircle className="mx-auto h-16 w-16 text-orange-500 mb-4" />
+          {isOffline ? (
+            <Wifi className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          ) : (
+            <AlertCircle className="mx-auto h-16 w-16 text-orange-500 mb-4" />
+          )}
+          
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Questions Loading Error
+            {isOffline ? 'Connection Problem' : 'Questions Loading Error'}
           </h1>
+          
           <p className="text-gray-600 mb-4">
-            We're having trouble loading the questions. This might be a temporary network issue.
+            {errorMessage}
           </p>
         </div>
 
@@ -35,7 +46,7 @@ export default function QuestionsError({
             className="w-full bg-orange-600 hover:bg-orange-700"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
-            Retry Loading Questions
+            Try Again
           </Button>
           
           <Link href="/" className="block">
