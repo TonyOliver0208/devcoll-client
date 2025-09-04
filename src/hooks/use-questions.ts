@@ -15,7 +15,6 @@ export const useQuestions = (params?: any) => {
   return useQuery({
     queryKey: questionKeys.list(JSON.stringify(params)),
     queryFn: () => questionsApi.getQuestions(params),
-    // Optional: configure based on your needs
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
