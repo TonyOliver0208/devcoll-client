@@ -1,6 +1,8 @@
 import { ApiError, NetworkError } from '@/lib/errors'
 
-// Base API configuration for microservices
+// API Client for microservices architecture
+import type { Question } from '@/types/questions'
+import type { Tag } from '@/types/tag'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 class ApiClient {
@@ -84,11 +86,11 @@ export const apiClient = new ApiClient()
 
 // Microservice-specific clients
 export const questionsApi = {
-  getQuestions: (params?: any) => apiClient.get('/questions', { ...params }),
-  getQuestion: (id: string) => apiClient.get(`/questions/${id}`),
-  createQuestion: (data: any) => apiClient.post('/questions', data),
-  updateQuestion: (id: string, data: any) => apiClient.put(`/questions/${id}`, data),
-  deleteQuestion: (id: string) => apiClient.delete(`/questions/${id}`),
+  getQuestions: (params?: any): Promise<Question[]> => apiClient.get('/questions', { ...params }),
+  getQuestion: (id: string): Promise<Question> => apiClient.get(`/questions/${id}`),
+  createQuestion: (data: any): Promise<Question> => apiClient.post('/questions', data),
+  updateQuestion: (id: string, data: any): Promise<Question> => apiClient.put(`/questions/${id}`, data),
+  deleteQuestion: (id: string): Promise<void> => apiClient.delete(`/questions/${id}`),
 }
 
 export const authApi = {
@@ -97,6 +99,6 @@ export const authApi = {
 }
 
 export const tagsApi = {
-  getTags: () => apiClient.get('/tags'),
+  getTags: (): Promise<Tag[]> => apiClient.get('/tags'),
   getTag: (id: string) => apiClient.get(`/tags/${id}`),
 }

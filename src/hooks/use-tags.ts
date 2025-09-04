@@ -10,11 +10,12 @@ export const tagKeys = {
 }
 
 // Get all tags
-export const useTags = () => {
+export const useTags = (options?: any) => {
   return useQuery({
     queryKey: tagKeys.lists(),
     queryFn: () => tagsApi.getTags(),
     staleTime: 10 * 60 * 1000, // 10 minutes - tags don't change often
+    ...options, // Allow additional query options
   })
 }
 

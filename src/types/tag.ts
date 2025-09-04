@@ -8,7 +8,7 @@ export interface Tag {
 }
 
 export interface TagsPageProps {
-  tags: Tag[];
+  tags?: Tag[]; 
 }
 
 export interface TagCardProps {

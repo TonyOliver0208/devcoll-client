@@ -11,11 +11,12 @@ export const questionKeys = {
 }
 
 // Get all questions with filters
-export const useQuestions = (params?: any) => {
+export const useQuestions = (params?: any, options?: any) => {
   return useQuery({
     queryKey: questionKeys.list(JSON.stringify(params)),
     queryFn: () => questionsApi.getQuestions(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    ...options, // Allow additional query options
   })
 }
 
