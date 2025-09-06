@@ -1,13 +1,27 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { User, Activity, Bookmark, Settings, Plus, MapPin, Calendar, Link2, Users, Trophy, Star, Heart, MessageSquare } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useSavedItemsStore } from '@/store';
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import {
+  User,
+  Activity,
+  Bookmark,
+  Settings,
+  Plus,
+  MapPin,
+  Calendar,
+  Link2,
+  Users,
+  Trophy,
+  Star,
+  Heart,
+  MessageSquare,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useSavedItemsStore } from "@/store";
 
 interface UserStats {
   questionsAsked: number;
@@ -20,19 +34,23 @@ export default function Profile() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   // Initialize with URL param if available, otherwise default to profile
   const [activeTab, setActiveTab] = useState(() => {
-    const tabParam = searchParams.get('tab');
-    return (tabParam && ['profile', 'activity', 'saves', 'settings'].includes(tabParam)) 
-      ? tabParam 
+    const tabParam = searchParams.get("tab");
+    return tabParam &&
+      ["profile", "activity", "saves", "settings"].includes(tabParam)
+      ? tabParam
       : "profile";
   });
-  
+
   // Handle tab query parameter changes
   useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam && ['profile', 'activity', 'saves', 'settings'].includes(tabParam)) {
+    const tabParam = searchParams.get("tab");
+    if (
+      tabParam &&
+      ["profile", "activity", "saves", "settings"].includes(tabParam)
+    ) {
       setActiveTab(tabParam);
     } else if (!tabParam) {
       setActiveTab("profile");
@@ -44,9 +62,15 @@ export default function Profile() {
     setActiveTab(tab);
     router.push(`/profile?tab=${tab}`, { scroll: false });
   };
-  
+
   // Access saved items from store
-  const { savedItems, savedLists, getAllSavedItems, getSavedItemsCount, loadSavedLists } = useSavedItemsStore();
+  const {
+    savedItems,
+    savedLists,
+    getAllSavedItems,
+    getSavedItemsCount,
+    loadSavedLists,
+  } = useSavedItemsStore();
   const allSavedItems = getAllSavedItems();
   const savedItemsCount = getSavedItemsCount();
 
@@ -65,7 +89,7 @@ export default function Profile() {
     questionsAsked: 5,
     answersGiven: 12,
     reputation: 245,
-    joined: "March 2024"
+    joined: "March 2024",
   };
 
   if (status === "loading") {
@@ -79,13 +103,15 @@ export default function Profile() {
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-        <h1 className="text-2xl font-bold mb-4">Please log in to view your profile</h1>
-        <p className="text-gray-600 mb-6">You need to be logged in to access your profile page.</p>
+        <h1 className="text-2xl font-bold mb-4">
+          Please log in to view your profile
+        </h1>
+        <p className="text-gray-600 mb-6">
+          You need to be logged in to access your profile page.
+        </p>
         <div className="flex gap-4">
           <Link href="/login">
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              Log in
-            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700">Log in</Button>
           </Link>
         </div>
       </div>
@@ -93,25 +119,37 @@ export default function Profile() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="w-full max-w-[1070px] pl-4 py-6">
       {/* Profile Header */}
       <ProfileHeader session={session} userStats={userStats} />
-      
+
       {/* Navigation and Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-8">
-        {/* Left Sidebar Navigation - Fixed Width Column */}
-        <div className="lg:col-span-1">
+      <div className="flex flex-col lg:flex-row gap-6 mt-8">
+        {/* Left Sidebar Navigation - Consistent Fixed Width */}
+        <div className="lg:w-72 flex-shrink-0">
           <div className="lg:sticky lg:top-6">
-            <ProfileSidebar activeTab={activeTab} onTabChange={handleTabChange} savedLists={Object.values(savedLists)} />
+            <ProfileSidebar
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              savedLists={Object.values(savedLists)}
+            />
           </div>
         </div>
-        
-        {/* Main Content Area - Fixed Width Column */}
-        <div className="lg:col-span-4">
-          <div className="h-full">
+
+        {/* Main Content Area - Takes remaining space with 20px right margin */}
+        <div className="flex-1 min-w-0 max-w-4xl">
+          {/* Fixed container to prevent layout shifts */}
+          <div className="w-full min-h-[600px]">
             <div className="space-y-6">
-              {activeTab === "saves" && <SavesSection savedItems={allSavedItems} savedItemsCount={savedItemsCount} />}
-              {activeTab === "profile" && <ProfileSection session={session} userStats={userStats} />}
+              {activeTab === "saves" && (
+                <SavesSection
+                  savedItems={allSavedItems}
+                  savedItemsCount={savedItemsCount}
+                />
+              )}
+              {activeTab === "profile" && (
+                <ProfileSection session={session} userStats={userStats} />
+              )}
               {activeTab === "activity" && <ActivitySection />}
               {activeTab === "settings" && <SettingsSection />}
             </div>
@@ -122,7 +160,13 @@ export default function Profile() {
   );
 }
 
-function ProfileHeader({ session, userStats }: { session: any; userStats: UserStats }) {
+function ProfileHeader({
+  session,
+  userStats,
+}: {
+  session: any;
+  userStats: UserStats;
+}) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -141,7 +185,7 @@ function ProfileHeader({ session, userStats }: { session: any; userStats: UserSt
               session?.user?.name?.charAt(0) || "U"
             )}
           </div>
-          
+
           {/* User Info */}
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -159,26 +203,32 @@ function ProfileHeader({ session, userStats }: { session: any; userStats: UserSt
             </div>
           </div>
         </div>
-        
+
         {/* Edit Profile Button */}
         <Button variant="outline" className="flex items-center gap-2">
           <Settings size={16} />
           Edit profile
         </Button>
       </div>
-      
+
       {/* Stats */}
       <div className="flex flex-wrap gap-6 mt-6 pt-6 border-t border-gray-200">
         <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900">{userStats.reputation}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {userStats.reputation}
+          </div>
           <div className="text-sm text-gray-600">reputation</div>
         </div>
         <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900">{userStats.questionsAsked}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {userStats.questionsAsked}
+          </div>
           <div className="text-sm text-gray-600">questions</div>
         </div>
         <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900">{userStats.answersGiven}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {userStats.answersGiven}
+          </div>
           <div className="text-sm text-gray-600">answers</div>
         </div>
       </div>
@@ -186,12 +236,12 @@ function ProfileHeader({ session, userStats }: { session: any; userStats: UserSt
   );
 }
 
-function ProfileSidebar({ 
-  activeTab, 
-  onTabChange, 
-  savedLists 
-}: { 
-  activeTab: string; 
+function ProfileSidebar({
+  activeTab,
+  onTabChange,
+  savedLists,
+}: {
+  activeTab: string;
   onTabChange: (tab: string) => void;
   savedLists: any[];
 }) {
@@ -205,7 +255,7 @@ function ProfileSidebar({
   return (
     <div className="w-full">
       <div className="bg-white border border-gray-200 rounded-lg p-4">
-        {/* Tab Navigation */}
+        {/* Tab Navigation - Fixed width buttons */}
         <nav className="space-y-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -214,19 +264,19 @@ function ProfileSidebar({
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-md transition-colors duration-150 ${
                   isActive
                     ? "bg-orange-100 text-orange-700 border-l-4 border-orange-500"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Icon size={16} />
-                {tab.label}
+                <Icon size={16} className="flex-shrink-0" />
+                <span className="truncate">{tab.label}</span>
               </button>
             );
           })}
         </nav>
-        
+
         {/* My Lists Section */}
         <div className="mt-6 pt-6 border-t border-gray-200">
           <div className="flex items-center justify-between mb-3">
@@ -240,7 +290,10 @@ function ProfileSidebar({
           <div className="space-y-2 text-sm">
             {savedLists && savedLists.length > 0 ? (
               savedLists.map((list) => (
-                <div key={list.id} className="text-gray-600 px-3 py-1 hover:bg-gray-50 rounded cursor-pointer">
+                <div
+                  key={list.id}
+                  className="text-gray-600 px-3 py-1 hover:bg-gray-50 rounded cursor-pointer"
+                >
                   {list.name} ({list.itemCount || 0})
                 </div>
               ))
@@ -256,9 +309,15 @@ function ProfileSidebar({
   );
 }
 
-function SavesSection({ savedItems, savedItemsCount }: { savedItems: any[]; savedItemsCount: number }) {
+function SavesSection({
+  savedItems,
+  savedItemsCount,
+}: {
+  savedItems: any[];
+  savedItemsCount: number;
+}) {
   return (
-    <>
+    <div className="w-full">
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold">Saved Items ({savedItemsCount})</h2>
@@ -272,11 +331,14 @@ function SavesSection({ savedItems, savedItemsCount }: { savedItems: any[]; save
             </Button>
           </div>
         </div>
-        
+
         {savedItems.length > 0 ? (
           <div className="space-y-4">
             {savedItems.map((item) => (
-              <div key={item.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+              <div
+                key={item.id}
+                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+              >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="font-medium text-gray-900 hover:text-blue-600 cursor-pointer">
@@ -286,11 +348,21 @@ function SavesSection({ savedItems, savedItemsCount }: { savedItems: any[]; save
                       {item.excerpt || "No preview available"}
                     </p>
                     <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                      <span>Saved on {new Date(item.savedAt).toLocaleDateString()}</span>
-                      {item.type && <span className="px-2 py-1 bg-gray-100 rounded">{item.type}</span>}
+                      <span>
+                        Saved on {new Date(item.savedAt).toLocaleDateString()}
+                      </span>
+                      {item.type && (
+                        <span className="px-2 py-1 bg-gray-100 rounded">
+                          {item.type}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-red-500">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-400 hover:text-red-500"
+                  >
                     <Heart size={16} />
                   </Button>
                 </div>
@@ -300,35 +372,53 @@ function SavesSection({ savedItems, savedItemsCount }: { savedItems: any[]; save
         ) : (
           <div className="text-center py-12">
             <Bookmark size={48} className="text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No saved items yet</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No saved items yet
+            </h3>
             <p className="text-gray-600">
-              Items you save will appear here. Start saving questions and answers you want to revisit later.
+              Items you save will appear here. Start saving questions and
+              answers you want to revisit later.
             </p>
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
-function ProfileSection({ session, userStats }: { session: any; userStats: UserStats }) {
+function ProfileSection({
+  session,
+  userStats,
+}: {
+  session: any;
+  userStats: UserStats;
+}) {
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       {/* About */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h2 className="text-xl font-bold mb-4">About</h2>
         <div className="text-gray-600">
           <p className="mb-4">
-            Welcome to your developer profile! This is where you can showcase your expertise, 
-            track your contributions, and manage your account settings.
+            Welcome to your developer profile! This is where you can showcase
+            your expertise, track your contributions, and manage your account
+            settings.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Skills & Technologies</h4>
+              <h4 className="font-medium text-gray-900 mb-2">
+                Skills & Technologies
+              </h4>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">JavaScript</span>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">React</span>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">TypeScript</span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                  JavaScript
+                </span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                  React
+                </span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                  TypeScript
+                </span>
               </div>
             </div>
             <div>
@@ -356,7 +446,8 @@ function ProfileSection({ session, userStats }: { session: any; userStats: UserS
             <MessageSquare size={16} className="text-blue-500 mt-1" />
             <div>
               <p className="text-sm">
-                <span className="font-medium">Asked a question:</span> "How to implement authentication in Next.js?"
+                <span className="font-medium">Asked a question:</span> "How to
+                implement authentication in Next.js?"
               </p>
               <p className="text-xs text-gray-500 mt-1">2 days ago</p>
             </div>
@@ -365,7 +456,8 @@ function ProfileSection({ session, userStats }: { session: any; userStats: UserS
             <Star size={16} className="text-yellow-500 mt-1" />
             <div>
               <p className="text-sm">
-                <span className="font-medium">Answered a question:</span> "Best practices for React state management"
+                <span className="font-medium">Answered a question:</span> "Best
+                practices for React state management"
               </p>
               <p className="text-xs text-gray-500 mt-1">5 days ago</p>
             </div>
@@ -378,15 +470,21 @@ function ProfileSection({ session, userStats }: { session: any; userStats: UserS
         <h2 className="text-xl font-bold mb-4">Profile Statistics</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{userStats.questionsAsked}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {userStats.questionsAsked}
+            </div>
             <div className="text-sm text-gray-600">Questions</div>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{userStats.answersGiven}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {userStats.answersGiven}
+            </div>
             <div className="text-sm text-gray-600">Answers</div>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">{userStats.reputation}</div>
+            <div className="text-2xl font-bold text-orange-600">
+              {userStats.reputation}
+            </div>
             <div className="text-sm text-gray-600">Reputation</div>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
@@ -401,7 +499,7 @@ function ProfileSection({ session, userStats }: { session: any; userStats: UserS
 
 function ActivitySection() {
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       {/* Activity History */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h2 className="text-xl font-bold mb-4">Activity History</h2>
@@ -418,7 +516,8 @@ function ActivitySection() {
                   <span className="text-sm text-gray-500">2 days ago</span>
                 </div>
                 <p className="text-sm text-gray-600 mt-1">
-                  "How to implement proper error handling in React applications?"
+                  "How to implement proper error handling in React
+                  applications?"
                 </p>
                 <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                   <span>3 answers</span>
@@ -494,7 +593,7 @@ function ActivitySection() {
 
 function SettingsSection() {
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       {/* Account Settings */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h2 className="text-xl font-bold mb-4">Account Settings</h2>
@@ -509,7 +608,7 @@ function SettingsSection() {
               placeholder="Enter your display name"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Bio
@@ -520,7 +619,7 @@ function SettingsSection() {
               placeholder="Tell us about yourself..."
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Location
@@ -531,7 +630,7 @@ function SettingsSection() {
               placeholder="Where are you based?"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Website
@@ -542,7 +641,7 @@ function SettingsSection() {
               placeholder="https://yourwebsite.com"
             />
           </div>
-          
+
           <Button className="bg-orange-500 hover:bg-orange-600">
             Save Changes
           </Button>
@@ -556,23 +655,29 @@ function SettingsSection() {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Email notifications</h4>
-              <p className="text-sm text-gray-600">Receive notifications about your questions and answers</p>
+              <p className="text-sm text-gray-600">
+                Receive notifications about your questions and answers
+              </p>
             </div>
             <input type="checkbox" className="toggle" defaultChecked />
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Weekly digest</h4>
-              <p className="text-sm text-gray-600">Get a weekly summary of top questions</p>
+              <p className="text-sm text-gray-600">
+                Get a weekly summary of top questions
+              </p>
             </div>
             <input type="checkbox" className="toggle" />
           </div>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">New follower notifications</h4>
-              <p className="text-sm text-gray-600">Get notified when someone follows your profile</p>
+              <p className="text-sm text-gray-600">
+                Get notified when someone follows your profile
+              </p>
             </div>
             <input type="checkbox" className="toggle" defaultChecked />
           </div>
