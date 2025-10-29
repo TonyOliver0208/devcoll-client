@@ -143,3 +143,23 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Notification highlight animation */
+.notification-highlight {
+  animation: notificationHighlight 2s ease-in-out;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+@keyframes notificationHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}

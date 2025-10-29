@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import ContentDisplay from "./ContentDisplay";
 import { VoteControls, ActionButtons, AuthorCard } from "./VoteControls";
 import CommentList from "./CommentList";
+import { generateAnchorId } from "@/lib/scrollUtils";
 import type { Question } from "@/types/questions";
 
 interface QuestionSectionProps {
@@ -32,7 +33,10 @@ const QuestionSection = ({
   const handleDownvote = () => onVote?.('down');
 
   return (
-    <Card className="mb-6">
+    <Card 
+      id={generateAnchorId('question', question.id)}
+      className="mb-6"
+    >
       <CardContent className="p-4 sm:p-6">
         <div className="flex gap-2 sm:gap-4">
           <VoteControls 

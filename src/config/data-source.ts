@@ -1,7 +1,7 @@
 // Configuration for data source
 // Set to true to use mock data, false to use React Query API calls
 
-export const USE_MOCK_DATA = false; // Change this to false when backend is ready
+export const USE_MOCK_DATA = true; // Change this to false when backend is ready
 
 export const config = {
   useMockData: USE_MOCK_DATA,

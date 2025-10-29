@@ -3,6 +3,7 @@ import "./globals.css";
 import NextAuthProvider from "@/providers/nextauth-provider";
 import QueryProvider from "@/providers/query-provider";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { AuthStatusDebug } from "@/components/auth/SessionInitializer";
 
 export const metadata: Metadata = {
   title: "DevColl - Forum For Dev Platform",
@@ -22,6 +23,7 @@ export default function RootLayout({
           <NextAuthProvider>
             <QueryProvider>
               {children}
+              <AuthStatusDebug />
             </QueryProvider>
           </NextAuthProvider>
         </ErrorBoundary>

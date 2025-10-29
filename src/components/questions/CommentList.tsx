@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Comment } from "@/types/questions";
+import { generateAnchorId } from "@/lib/scrollUtils";
 import {
   validateComment,
   validateMarkdown,
@@ -131,7 +132,10 @@ const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
 
 // Comment item component
 const CommentItem = ({ comment }: { comment: Comment }) => (
-  <div className="flex items-start gap-2 py-1">
+  <div 
+    id={generateAnchorId('comment', comment.id)}
+    className="flex items-start gap-2 py-1"
+  >
     <div className="flex-1 min-w-0">
       <div className="text-sm text-gray-800 leading-relaxed">
         <CommentContent content={comment.content} />

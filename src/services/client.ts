@@ -39,9 +39,9 @@ apiClient.interceptors.request.use(
         config.headers['X-User-ID'] = session.user.id;
       }
       
-      if (session?.idToken) {
-        // Add JWT bearer token for authentication
-        config.headers.Authorization = `Bearer ${session.idToken}`;
+      if (session?.accessToken) {
+        // Add JWT bearer token for authentication (internal token from auth-service)
+        config.headers.Authorization = `Bearer ${session.accessToken}`;
       }
       
       // Add request timestamp for debugging

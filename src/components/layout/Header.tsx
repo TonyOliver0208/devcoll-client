@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
+import { useState } from "react";
 import {
   Search,
   Menu,
@@ -12,7 +13,11 @@ import {
   ChevronDown,
   ArrowLeft,
   LogOut,
+  Plus,
 } from "lucide-react";
+import NotificationDropdown from "@/components/shared/NotificationDropdown";
+import { useNotificationStore } from "@/store/notificationStore";
+import { useNotificationSimulator } from "@/lib/notificationSimulator";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -113,6 +118,9 @@ function SearchBar() {
 
 function UserActions() {
   const { data: session, status } = useSession();
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const { unreadCount } = useNotificationStore();
+  const { simulateNewAnswer, simulateNewComment, simulateMention } = useNotificationSimulator();
 
   if (status === "loading") {
     return (
@@ -140,12 +148,52 @@ function UserActions() {
     );
   }
 
+  // Test notification functions (only show in development)
+  const addTestNotification = () => {
+    const notifications = [
+      () => simulateNewAnswer(123, "test-answer-" + Date.now(), "Test User"),
+      () => simulateNewComment(456, "test-comment-" + Date.now(), "Comment Author"),
+      () => simulateMention(789, "test-mention-" + Date.now(), "Mention Author")
+    ];
+    
+    const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
+    randomNotification();
+  };
+
   // Show authenticated user actions
   return (
     <div className="flex items-center space-x-2">
-      <button className="p-2 text-gray-500 hover:bg-gray-100 rounded transition-colors">
-        <Bell size={20} />
-      </button>
+      {/* Test Notification Button (only in development) */}
+      {process.env.NODE_ENV === 'development' && (
+        <button 
+          onClick={addTestNotification}
+          className="p-1 text-gray-500 hover:bg-gray-100 rounded transition-colors"
+          title="Add test notification"
+        >
+          <Plus size={16} />
+        </button>
+      )}
+      
+      {/* Notification Bell */}
+      <div className="relative">
+        <button 
+          className="p-2 text-gray-500 hover:bg-gray-100 rounded transition-colors relative"
+          onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+        >
+          <Bell size={20} />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
+        
+        <NotificationDropdown 
+          isOpen={isNotificationOpen}
+          onClose={() => setIsNotificationOpen(false)}
+        />
+      </div>
+      
       <button className="p-2 text-gray-500 hover:bg-gray-100 rounded transition-colors">
         <MessageSquare size={20} />
       </button>

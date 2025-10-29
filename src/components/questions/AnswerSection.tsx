@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ContentDisplay from "./ContentDisplay";
 import { VoteControls, ActionButtons, AuthorCard } from "./VoteControls";
 import CommentList from "./CommentList";
+import { handleHashNavigation, generateAnchorId } from "@/lib/scrollUtils";
 import type { Answer } from "@/types/questions";
 
 interface AnswerSectionProps {
@@ -36,6 +37,11 @@ const AnswerSection = ({
   canAcceptAnswers = false
 }: AnswerSectionProps) => {
   const [sortBy, setSortBy] = useState<SortOption>('score');
+
+  // Handle hash navigation on component mount
+  useEffect(() => {
+    handleHashNavigation();
+  }, []);
 
   if (!answers || answers.length === 0) {
     return null;
@@ -142,7 +148,10 @@ const AnswerCard = ({
 
   return (
     <>
-      <Card className={answer.isAccepted ? "border-green-200 bg-green-50/30" : ""}>
+      <Card 
+        id={generateAnchorId('answer', answer.id)}
+        className={answer.isAccepted ? "border-green-200 bg-green-50/30" : ""}
+      >
         <CardContent className="p-4 sm:p-6">
           <div className="flex gap-2 sm:gap-4">
             <div className="flex flex-col items-center gap-1 sm:gap-2 min-w-[50px] sm:min-w-[60px]">

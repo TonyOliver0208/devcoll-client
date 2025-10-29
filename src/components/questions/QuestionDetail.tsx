@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Question } from "@/types/questions";
@@ -8,6 +8,7 @@ import RightSidebar from "@/components/home/RightSidebar";
 import QuestionSection from "./QuestionSection";
 import AnswerSection from "./AnswerSection";
 import YourAnswer from "./YourAnswer";
+import { handleHashNavigation } from "@/lib/scrollUtils";
 
 interface QuestionDetailProps {
   question: Question;
@@ -17,6 +18,11 @@ interface QuestionDetailProps {
 const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
   const router = useRouter();
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
+
+  // Handle hash navigation on component mount
+  useEffect(() => {
+    handleHashNavigation();
+  }, []);
 
   // Question interaction handlers
   const handleQuestionVote = async (type: 'up' | 'down') => {
