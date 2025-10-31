@@ -6,7 +6,8 @@ import type { Question } from '@/types/questions'
 import type { Tag } from '@/types/tag'
 
 // API Gateway configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:4000'
+// Backend runs on port 4000 with /api/v1 prefix
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:4000/api/v1'
 
 // Enterprise API Response Types
 interface APIResponse<T = any> {
@@ -205,10 +206,57 @@ class ApiClient {
 // Export singleton instance
 export const apiClient = new ApiClient()
 
+// Data transformation helpers
+// Map backend Post model to frontend Question model
+const mapPostToQuestion = (post: any): Question => {
+  return {
+    id: parseInt(post.id) || 0,
+    title: extractTitle(post.content) || 'Untitled',
+    content: post.content,
+    votes: post.likesCount || 0,
+    answers: post.commentsCount || 0,
+    views: 0, // Backend doesn't track views yet
+    tags: post.tags || [],
+    timeAgo: formatTimeAgo(post.createdAt),
+    author: {
+      id: post.userId,
+      name: post.author?.name || 'Anonymous',
+      reputation: post.author?.reputation || 0,
+      avatar: post.author?.picture,
+    },
+    hasAcceptedAnswer: false,
+    userVote: null,
+    isBookmarked: false,
+  }
+}
+
+// Extract title from content (first line or first 100 chars)
+const extractTitle = (content: string): string => {
+  if (!content) return 'Untitled'
+  const firstLine = content.split('\n')[0]
+  return firstLine.length > 100 ? firstLine.substring(0, 100) + '...' : firstLine
+}
+
+// Format timestamp to relative time
+const formatTimeAgo = (timestamp: string): string => {
+  if (!timestamp) return 'just now'
+  const date = new Date(timestamp)
+  const now = new Date()
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  
+  if (seconds < 60) return 'just now'
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`
+  if (seconds < 2592000) return `${Math.floor(seconds / 604800)} weeks ago`
+  return `${Math.floor(seconds / 2592000)} months ago`
+}
+
 // Microservice-specific clients updated for API Gateway routing
+// Note: Backend uses "posts" but frontend uses "questions" terminology
 export const questionsApi = {
-  // Questions are routed through API Gateway to question-service
-  getQuestions: (params?: {
+  // Get all posts/questions - maps to GET /api/v1/posts/feed
+  getQuestions: async (params?: {
     page?: number;
     limit?: number;
     search?: string;
@@ -219,52 +267,89 @@ export const questionsApi = {
     const queryParams = new URLSearchParams()
     
     if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          if (key === 'tags' && Array.isArray(value)) {
-            value.forEach(tag => queryParams.append('tags', tag))
-          } else {
-            queryParams.append(key, value.toString())
-          }
-        }
-      })
+      if (params.page) queryParams.append('page', params.page.toString())
+      if (params.limit) queryParams.append('limit', params.limit.toString())
+      // Note: Backend doesn't support search/tags/sort yet
+      // These will be added to the backend later
     }
 
     const queryString = queryParams.toString()
-    return apiClient.get(`/v1/questions${queryString ? `?${queryString}` : ''}`)
+    const response = await apiClient.get<any>(`/posts/feed${queryString ? `?${queryString}` : ''}`)
+    
+    // Transform backend response to frontend format
+    if (response.posts && Array.isArray(response.posts)) {
+      return response.posts.map(mapPostToQuestion)
+    }
+    return []
   },
   
-  getQuestion: (id: string): Promise<Question> => 
-    apiClient.get(`/v1/questions/${id}`),
+  // Get single post/question - maps to GET /api/v1/posts/:id
+  getQuestion: async (id: string): Promise<Question> => {
+    const response = await apiClient.get<any>(`/posts/${id}`)
+    return mapPostToQuestion(response)
+  },
     
-  createQuestion: (data: {
+  // Create post/question - maps to POST /api/v1/posts
+  createQuestion: async (data: {
     title: string;
     content: string;
     tags: string[];
-  }): Promise<Question> => 
-    apiClient.post('/v1/questions', data),
+  }): Promise<Question> => {
+    // Backend expects: { content, mediaUrls?, visibility? }
+    // Frontend sends: { title, content, tags }
+    // Combine title and content for now
+    const postData = {
+      content: `${data.title}\n\n${data.content}`,
+      visibility: 'PUBLIC',
+      // Note: Backend doesn't support tags yet
+    }
     
-  updateQuestion: (id: string, data: {
+    const response = await apiClient.post<any>('/posts', postData)
+    return mapPostToQuestion(response)
+  },
+    
+  // Update post/question - maps to PATCH /api/v1/posts/:id
+  updateQuestion: async (id: string, data: {
     title?: string;
     content?: string;
     tags?: string[];
-  }): Promise<Question> => 
-    apiClient.put(`/v1/questions/${id}`, data),
+  }): Promise<Question> => {
+    const postData: any = {}
     
-  deleteQuestion: (id: string): Promise<void> => 
-    apiClient.delete(`/v1/questions/${id}`),
+    if (data.title || data.content) {
+      const title = data.title || ''
+      const content = data.content || ''
+      postData.content = title ? `${title}\n\n${content}` : content
+    }
     
-  voteQuestion: (id: string, voteType: 'up' | 'down'): Promise<any> => 
-    apiClient.post(`/v1/questions/${id}/vote`, { voteType }),
+    const response = await apiClient.put<any>(`/posts/${id}`, postData)
+    return mapPostToQuestion(response)
+  },
+    
+  // Delete post/question - maps to DELETE /api/v1/posts/:id
+  deleteQuestion: async (id: string): Promise<void> => {
+    await apiClient.delete(`/posts/${id}`)
+  },
+    
+  // Vote on post/question - maps to POST /api/v1/posts/:id/like or DELETE /api/v1/posts/:id/like
+  voteQuestion: async (id: string, voteType: 'up' | 'down'): Promise<any> => {
+    if (voteType === 'up') {
+      return await apiClient.post(`/posts/${id}/like`, {})
+    } else {
+      return await apiClient.delete(`/posts/${id}/like`)
+    }
+  },
 }
 
 export const authApi = {
   // Authentication and user management through API Gateway
-  // Note: No session endpoints needed - using stateless JWT authentication
+  // Note: Using stateless JWT authentication via NextAuth
   
+  // Get current user profile - maps to GET /api/v1/users/profile
   getProfile: (): Promise<any> => 
-    apiClient.get('/v1/users/profile'),
+    apiClient.get('/users/profile'),
     
+  // Update user profile - maps to PUT /api/v1/users/profile
   updateProfile: (data: {
     name?: string;
     username?: string;
@@ -273,11 +358,13 @@ export const authApi = {
     preferences?: any;
     profile?: any;
   }): Promise<any> => 
-    apiClient.put('/v1/users/profile', data),
+    apiClient.put('/users/profile', data),
     
+  // Get user by ID - maps to GET /api/v1/users/:id
   getUserById: (userId: string): Promise<any> => 
-    apiClient.get(`/v1/users/${userId}`),
+    apiClient.get(`/users/${userId}`),
     
+  // Get list of users - maps to GET /api/v1/users
   getUsers: (params?: {
     page?: number;
     limit?: number;
@@ -296,39 +383,52 @@ export const authApi = {
     }
 
     const queryString = queryParams.toString()
-    return apiClient.get(`/v1/users${queryString ? `?${queryString}` : ''}`)
+    return apiClient.get(`/users${queryString ? `?${queryString}` : ''}`)
   },
     
+  // Note: Backend doesn't have "top users" endpoint yet
   getTopUsers: (limit = 10): Promise<any> => 
-    apiClient.get(`/v1/users/top?limit=${limit}`),
+    apiClient.get(`/users?limit=${limit}&sortBy=reputation&sortOrder=desc`),
 }
 
 export const tagsApi = {
-  // Tags are routed through API Gateway to tag-service
-  getTags: (): Promise<Tag[]> => 
-    apiClient.get('/v1/tags'),
+  // Note: Backend doesn't have tags service yet
+  // These endpoints will return mock data until backend is implemented
+  getTags: (): Promise<Tag[]> => {
+    console.warn('Tags API not implemented in backend yet')
+    return Promise.resolve([])
+  },
     
-  getTag: (id: string): Promise<Tag> => 
-    apiClient.get(`/v1/tags/${id}`),
+  getTag: (id: string): Promise<Tag> => {
+    console.warn('Tags API not implemented in backend yet')
+    return Promise.reject(new Error('Tags API not implemented'))
+  },
     
-  createTag: (data: { name: string; description?: string }): Promise<Tag> => 
-    apiClient.post('/v1/tags', data),
+  createTag: (data: { name: string; description?: string }): Promise<Tag> => {
+    console.warn('Tags API not implemented in backend yet')
+    return Promise.reject(new Error('Tags API not implemented'))
+  },
     
-  updateTag: (id: string, data: { name?: string; description?: string }): Promise<Tag> => 
-    apiClient.put(`/v1/tags/${id}`, data),
+  updateTag: (id: string, data: { name?: string; description?: string }): Promise<Tag> => {
+    console.warn('Tags API not implemented in backend yet')
+    return Promise.reject(new Error('Tags API not implemented'))
+  },
     
-  deleteTag: (id: string): Promise<void> => 
-    apiClient.delete(`/v1/tags/${id}`),
+  deleteTag: (id: string): Promise<void> => {
+    console.warn('Tags API not implemented in backend yet')
+    return Promise.reject(new Error('Tags API not implemented'))
+  },
 }
 
 export const searchApi = {
   // Search through API Gateway to search-service
-  search: (query: string, filters?: {
+  // Maps to GET /api/v1/search/posts
+  search: async (query: string, filters?: {
     type?: 'questions' | 'users' | 'all';
     tags?: string[];
     dateRange?: string;
   }): Promise<any> => {
-    const params = new URLSearchParams({ q: query })
+    const params = new URLSearchParams({ query })
     
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -342,11 +442,16 @@ export const searchApi = {
       })
     }
 
-    return apiClient.get(`/v1/search?${params.toString()}`)
+    // Backend has /search/posts and /search/users
+    const endpoint = filters?.type === 'users' ? '/search/users' : '/search/posts'
+    return apiClient.get(`${endpoint}?${params.toString()}`)
   },
   
-  getSearchSuggestions: (query: string): Promise<any> => 
-    apiClient.get(`/v1/search/suggestions?q=${encodeURIComponent(query)}`),
+  // Note: Backend doesn't have suggestions endpoint yet
+  getSearchSuggestions: (query: string): Promise<any> => {
+    console.warn('Search suggestions not implemented in backend yet')
+    return Promise.resolve([])
+  },
 }
 
 /**

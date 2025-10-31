@@ -3,8 +3,9 @@ import Google from "next-auth/providers/google";
 import axios, { AxiosError } from "axios";
 
 // Auth-service configuration via API Gateway
-const API_GATEWAY_URL = process.env.API_GATEWAY_URL || "http://localhost:4000";
-const AUTH_API_BASE = `${API_GATEWAY_URL}/v1/auth`;
+// Backend runs on port 4000 with /api/v1 prefix
+const API_GATEWAY_URL = process.env.API_GATEWAY_URL || "http://localhost:4000/api/v1";
+const AUTH_API_BASE = `${API_GATEWAY_URL}/auth`;
 
 // Create axios instance with default config
 const authApi = axios.create({

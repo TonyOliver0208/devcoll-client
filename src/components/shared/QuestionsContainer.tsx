@@ -38,7 +38,8 @@ export default function QuestionsContainer({
   questions: legacyQuestions,
 }: QuestionsContainerProps) {
   // Only use React Query if no legacy questions are provided
-  const shouldUseQuery = !legacyQuestions || legacyQuestions.length === 0;
+  // Check for undefined explicitly to properly detect when mock data is disabled
+  const shouldUseQuery = legacyQuestions === undefined;
   
   const { 
     data: queryQuestions, 

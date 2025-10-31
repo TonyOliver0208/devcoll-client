@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import AppLayout from "@/components/layout/AppLayout";
 import { QuestionsContainer } from "@/components/shared";
 import { mockQuestions } from "@/constants/questions";
+import { USE_MOCK_DATA } from "@/config/data-source";
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -12,7 +13,7 @@ export default function HomePage() {
   return (
     <AppLayout>
       <QuestionsContainer 
-        questions={mockQuestions}
+        questions={USE_MOCK_DATA ? mockQuestions : undefined}
         username={username}
         showHeader={false}
         showFilters={false}
