@@ -41,7 +41,7 @@ class ApiClient {
         'x-source': 'frontend',
       }
 
-      // Only try to get session on server-side or when explicitly available
+      // Get session token for authentication
       try {
         if (typeof window === 'undefined') {
           // Server-side: safe to call auth()
@@ -51,8 +51,29 @@ class ApiClient {
             console.log('[API Client] Adding internal JWT token to request (server)')
           }
         } else {
-          // Client-side: Don't call auth() as it uses headers() which requires request context
-          console.log('[API Client] Client-side request - no session token available')
+          // Client-side: fetch session from NextAuth session endpoint
+          try {
+            const sessionResponse = await fetch('/api/auth/session')
+            if (sessionResponse.ok) {
+              const session = await sessionResponse.json()
+              console.log('[API Client] Session data:', {
+                hasSession: !!session,
+                hasAccessToken: !!session?.accessToken,
+                accessTokenLength: session?.accessToken?.length,
+                sessionKeys: Object.keys(session || {}),
+              })
+              if (session?.accessToken) {
+                headers['Authorization'] = `Bearer ${session.accessToken}`
+                console.log('[API Client] Adding internal JWT token to request (client)')
+              } else {
+                console.warn('[API Client] Client-side request - no access token in session', session)
+              }
+            } else {
+              console.warn('[API Client] Session fetch failed:', sessionResponse.status)
+            }
+          } catch (fetchError) {
+            console.warn('[API Client] Could not fetch client session:', fetchError)
+          }
         }
       } catch (sessionError) {
         console.warn('[API Client] Could not retrieve session:', sessionError)
@@ -87,7 +108,8 @@ class ApiClient {
       console.log(`[API Request] ${options.method || 'GET'} ${endpoint}`, {
         attempt,
         url,
-        hasToken: !!headers['Authorization']
+        hasToken: !!headers['Authorization'],
+        authHeader: headers['Authorization'] ? `${headers['Authorization'].substring(0, 20)}...` : 'none'
       })
 
       // Add timeout control
@@ -209,10 +231,15 @@ export const apiClient = new ApiClient()
 // Data transformation helpers
 // Map backend Post model to frontend Question model
 const mapPostToQuestion = (post: any): Question => {
+  const fullContent = post.content || '';
+  const title = extractTitle(fullContent);
+  const contentBody = extractContentBody(fullContent);
+  
   return {
-    id: parseInt(post.id) || 0,
-    title: extractTitle(post.content) || 'Untitled',
-    content: post.content,
+    id: post.id, // Keep as string (UUID from backend) or number (mock data)
+    title: title,
+    content: fullContent,
+    excerpt: extractExcerpt(contentBody),
     votes: post.likesCount || 0,
     answers: post.commentsCount || 0,
     views: 0, // Backend doesn't track views yet
@@ -233,8 +260,29 @@ const mapPostToQuestion = (post: any): Question => {
 // Extract title from content (first line or first 100 chars)
 const extractTitle = (content: string): string => {
   if (!content) return 'Untitled'
-  const firstLine = content.split('\n')[0]
+  const lines = content.split('\n')
+  const firstLine = lines[0]?.trim() || 'Untitled'
   return firstLine.length > 100 ? firstLine.substring(0, 100) + '...' : firstLine
+}
+
+// Extract content body (everything after first line)
+const extractContentBody = (content: string): string => {
+  if (!content) return ''
+  const lines = content.split('\n')
+  return lines.slice(1).join('\n').trim()
+}
+
+// Extract excerpt from content body (first 200 chars, strip HTML tags)
+const extractExcerpt = (content: string): string => {
+  if (!content) return ''
+  
+  // Remove HTML tags
+  const strippedContent = content.replace(/<[^>]*>/g, '')
+  
+  // Get first 200 characters
+  const excerpt = strippedContent.substring(0, 200).trim()
+  
+  return excerpt.length < strippedContent.length ? excerpt + '...' : excerpt
 }
 
 // Format timestamp to relative time
@@ -295,14 +343,23 @@ export const questionsApi = {
     content: string;
     tags: string[];
   }): Promise<Question> => {
-    // Backend expects: { content, mediaUrls?, visibility? }
+    // Backend expects: { content, mediaUrls?, privacy? }
     // Frontend sends: { title, content, tags }
-    // Combine title and content for now
+    // Note: content might be from Tiptap editor (contentHtml) or plain string
+    
+    // If content is an object (Tiptap editor state), we need contentHtml
+    let contentText = data.content;
+    if (typeof data.content === 'object' && (data as any).contentHtml) {
+      contentText = (data as any).contentHtml;
+    }
+    
     const postData = {
-      content: `${data.title}\n\n${data.content}`,
-      visibility: 'PUBLIC',
+      content: `${data.title}\n\n${contentText}`,
+      privacy: 'PUBLIC',
       // Note: Backend doesn't support tags yet
     }
+    
+    console.log('[API Client] Creating post with data:', postData);
     
     const response = await apiClient.post<any>('/posts', postData)
     return mapPostToQuestion(response)

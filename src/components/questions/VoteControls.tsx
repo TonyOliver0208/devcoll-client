@@ -377,10 +377,10 @@ const AuthorCard = ({
         {action} {timeAgo}
       </div>
       <div className="flex items-center gap-2">
-        <img
-          src={author.avatar || "/api/placeholder/32/32"}
+                <img
+          src={author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name)}&size=32&background=random`}
           alt={author.name}
-          className="w-6 h-6 sm:w-8 sm:h-8 rounded"
+          className="w-8 h-8 rounded"
         />
         <div>
           <Link

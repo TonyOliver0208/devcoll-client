@@ -10,6 +10,7 @@ export const mockQuestions: Question[] = [
     tags: ["c++", "clang-tidy", "c++-coroutine"],
     timeAgo: "4 hours ago",
     author: {
+      id: "user-jens",
       name: "Jens",
       reputation: 417
     },
@@ -343,6 +344,7 @@ export const mockQuestions: Question[] = [
     tags: ["static-analysis", "asciidoc"],
     timeAgo: "48 secs ago",
     author: {
+      id: "user-arie",
       name: "arie",
       reputation: 852
     },
@@ -357,6 +359,7 @@ export const mockQuestions: Question[] = [
     tags: ["javascript", "arrays"],
     timeAgo: "Apr 23, 2011",
     author: {
+      id: "user-walker",
       name: "Walker",
       reputation: 135000
     },
@@ -372,6 +375,7 @@ export const mockQuestions: Question[] = [
     tags: ["javascript", "jquery", "dom", "visibility"],
     timeAgo: "Oct 7, 2008",
     author: {
+      id: "user-philip",
       name: "Philip Morton",
       reputation: 132000
     },
@@ -387,6 +391,7 @@ export const mockQuestions: Question[] = [
     tags: ["java", "postgresql", "spring-boot", "backend"],
     timeAgo: "6 mins ago",
     author: {
+      id: "user-miraj",
       name: "Miraj Hossain Shawon",
       reputation: 35
     },
@@ -401,6 +406,7 @@ export const mockQuestions: Question[] = [
     tags: ["reactjs", "typescript", "next.js", "webpack"],
     timeAgo: "7 mins ago",
     author: {
+      id: "user-anwar",
       name: "anwar",
       reputation: 428
     },
@@ -415,6 +421,7 @@ export const mockQuestions: Question[] = [
     tags: ["enums", "protocol-buffers", "google-cloud-pubsub"],
     timeAgo: "17 mins ago",
     author: {
+      id: "user-mike",
       name: "Mike Williamson",
       reputation: 3456
     },
@@ -429,6 +436,7 @@ export const mockQuestions: Question[] = [
     tags: ["python", "pyqt6"],
     timeAgo: "22 mins ago",
     author: {
+      id: "user-123",
       name: "user123",
       reputation: 156
     },

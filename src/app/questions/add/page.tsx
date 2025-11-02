@@ -8,10 +8,13 @@ import AIAssistantPanel from "@/components/questions/AIAssistantPanel";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useQuestionFormStore } from "@/store";
+import { useCreateQuestion } from "@/hooks/use-questions";
+import { handleAPIError } from "@/lib/api-client";
 
 export default function AddQuestionPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const createQuestionMutation = useCreateQuestion();
   
   const {
     isAnalyzing,
@@ -27,17 +30,34 @@ export default function AddQuestionPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement API call to create question
       console.log("Creating question:", data);
 
+      // Extract the HTML content from Tiptap editor
+      const contentText = data.contentHtml || data.content;
+      
+      if (!data.title || !contentText) {
+        alert("Please provide both title and content");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Call the API to create question
+      await createQuestionMutation.mutateAsync({
+        title: data.title,
+        content: contentText,
+        tags: data.tags || [],
+      });
+
+      console.log("Question created successfully!");
+      
       // Reset form after successful submission
       resetForm();
 
-      // For now, just redirect back to questions
+      // Redirect back to questions
       router.push("/questions");
     } catch (error) {
       console.error("Error creating question:", error);
-      alert("Failed to create question. Please try again.");
+      alert(`Failed to create question: ${handleAPIError(error)}`);
     } finally {
       setIsSubmitting(false);
     }

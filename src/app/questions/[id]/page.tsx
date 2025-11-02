@@ -24,8 +24,10 @@ export default function QuestionDetailPage({ params }: QuestionDetailPageProps) 
   // Note: useQuestion always runs, but we'll ignore it if using mock data
   const { data: apiQuestion, isLoading, isError } = useQuestion(shouldUseAPI ? id : "");
   
-  // Get mock question for fallback
-  const mockQuestion = mockQuestions.find(q => q.id === parseInt(id));
+  // Get mock question for fallback - handle both string UUIDs and numeric IDs
+  const mockQuestion = mockQuestions.find(q => 
+    q.id.toString() === id || q.id === parseInt(id)
+  );
   
   // Determine which question to display
   const question = shouldUseAPI ? apiQuestion : mockQuestion;

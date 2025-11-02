@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Award } from "lucide-react";
+import { Award, CheckCircle } from "lucide-react";
 import { Question } from "@/types/questions";
 
 interface QuestionsFeedProps {
@@ -9,6 +9,14 @@ interface QuestionsFeedProps {
 }
 
 export default function QuestionsFeed({ questions }: QuestionsFeedProps) {
+  if (questions.length === 0) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+        <p className="text-gray-600">No questions found.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white">
       <QuestionsList questions={questions} />
@@ -18,68 +26,60 @@ export default function QuestionsFeed({ questions }: QuestionsFeedProps) {
 
 function QuestionsList({ questions }: { questions: Question[] }) {
   return (
-    <div className="border border-gray-250 rounded">
-      {questions.map((question, index) => (
-        <QuestionItem
-          key={question.id}
-          question={question}
-          showBorder={index < questions.length - 1}
-        />
+    <div className="divide-y divide-gray-200 border-t border-gray-200">
+      {questions.map((question) => (
+        <QuestionItem key={question.id} question={question} />
       ))}
     </div>
   );
 }
 
-function QuestionItem({
-  question,
-  showBorder,
-}: {
-  question: Question;
-  showBorder: boolean;
-}) {
+function QuestionItem({ question }: { question: Question }) {
   return (
-    <div
-      className={`px-2 sm:px-4 py-3 sm:py-4 ${
-        showBorder ? "border-b border-gray-250" : ""
-      } hover:bg-gray-50 transition-colors`}
-    >
-      <div className="flex gap-3 sm:gap-6">
-        <QuestionStats question={question} />
-        <QuestionContent question={question} />
-      </div>
+    <div className="flex gap-4 px-4 py-4 hover:bg-gray-50 transition-colors">
+      {/* Left Stats Section */}
+      <QuestionStats question={question} />
+      
+      {/* Right Content Section */}
+      <QuestionContent question={question} />
     </div>
   );
 }
 
 function QuestionStats({ question }: { question: Question }) {
   return (
-    <div className="flex flex-col items-end gap-1 text-xs sm:text-sm text-gray-600 min-w-[60px] sm:min-w-[80px]">
-      <div className="flex items-center">
-        <span className="mr-1">{question.votes}</span>
-        <span className="hidden sm:inline">votes</span>
-        <span className="sm:hidden">v</span>
+    <div className="flex flex-col gap-2 items-end text-sm text-gray-600 min-w-[100px] flex-shrink-0">
+      {/* Votes */}
+      <div className="flex items-center gap-1.5">
+        <span className="font-medium text-gray-900">{question.votes}</span>
+        <span className="text-gray-600">vote{question.votes !== 1 ? 's' : ''}</span>
       </div>
+      
+      {/* Answers */}
       <div
-        className={`flex items-center ${
+        className={`flex items-center gap-1.5 ${
           question.hasAcceptedAnswer
-            ? "text-green-600"
+            ? "text-green-700 bg-green-100 px-2 py-0.5 rounded"
             : question.answers > 0
-            ? "text-green-600"
-            : ""
+            ? "text-green-700"
+            : "text-gray-600"
         }`}
       >
-        <span className="mr-1">{question.answers}</span>
-        <span className="hidden sm:inline">answers</span>
-        <span className="sm:hidden">a</span>
+        {question.hasAcceptedAnswer && (
+          <CheckCircle size={14} className="text-green-700" />
+        )}
+        <span className="font-medium text-gray-900">{question.answers}</span>
+        <span>answer{question.answers !== 1 ? 's' : ''}</span>
       </div>
-      <div className="flex items-center text-gray-500">
-        <span className="mr-1">
-          {question.views > 1000
-            ? `${Math.floor(question.views / 1000)}k`
+      
+      {/* Views */}
+      <div className="flex items-center gap-1.5 text-gray-500">
+        <span>
+          {question.views >= 1000
+            ? `${(question.views / 1000).toFixed(1)}k`
             : question.views}
         </span>
-        <span className="hidden sm:inline">views</span>
-        <span className="sm:hidden">v</span>
+        <span>view{question.views !== 1 ? 's' : ''}</span>
       </div>
     </div>
   );
@@ -87,61 +87,68 @@ function QuestionStats({ question }: { question: Question }) {
 
 function QuestionContent({ question }: { question: Question }) {
   return (
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
       {/* Bounty Badge */}
       {question.bountyAmount && (
         <div className="mb-2">
-          <div className="inline-flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-            <Award size={12} className="mr-1" />+{question.bountyAmount}
+          <div className="inline-flex items-center bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium gap-1">
+            <Award size={12} />
+            <span>+{question.bountyAmount}</span>
           </div>
         </div>
       )}
 
-      {/* Title */}
-      <Link
-        href={`/questions/${question.id}`}
-        className="text-blue-600 hover:text-blue-800 font-normal text-sm sm:text-base mb-2 block leading-tight line-clamp-2 sm:line-clamp-3"
-      >
-        {question.title}
-      </Link>
+      {/* Title - Stack Overflow style */}
+      <h3 className="mb-2">
+        <Link
+          href={`/questions/${question.id}`}
+          className="text-blue-600 hover:text-blue-800 text-[17px] leading-snug font-normal"
+        >
+          {question.title}
+        </Link>
+      </h3>
 
       {/* Excerpt */}
       {question.excerpt && (
-        <p className="text-gray-700 text-xs sm:text-sm mb-2 line-clamp-2">
+        <p className="text-gray-700 text-[13px] mb-2 line-clamp-2 leading-relaxed">
           {question.excerpt}
         </p>
       )}
 
-      {/* Tags */}
-      <div className="flex flex-wrap gap-1 mb-2">
-        {question.tags.slice(0, 3).map((tag) => (
-          <span
-            key={tag}
-            className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 rounded text-xs truncate max-w-[80px] sm:max-w-none"
-          >
-            {tag}
-          </span>
-        ))}
-        {question.tags.length > 3 && (
-          <span className="text-xs text-gray-500">
-            +{question.tags.length - 3} more
-          </span>
-        )}
-      </div>
+      {/* Bottom row: Tags + Author Info */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {/* Tags */}
+        <div className="flex flex-wrap gap-1">
+          {question.tags.map((tag) => (
+            <Link
+              key={tag}
+              href={`/questions/tagged/${tag}`}
+              className="inline-flex items-center px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs rounded transition-colors"
+            >
+              {tag}
+            </Link>
+          ))}
+        </div>
 
-      {/* Author Info */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center min-w-0 flex-1">
+        {/* Author Info */}
+        <div className="flex items-center gap-1 text-xs text-gray-600 flex-shrink-0">
           <img
-            src="/api/placeholder/16/16"
+            src={question.author.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(question.author.name)}&size=20&background=random`}
             alt={question.author.name}
-            className="w-3 h-3 sm:w-4 sm:h-4 rounded mr-1 flex-shrink-0"
+            className="w-5 h-5 rounded"
           />
-          <span className="text-blue-600 truncate mr-1">{question.author.name}</span>
-          <span className="ml-1 text-gray-600 hidden sm:inline">
+          <Link
+            href={`/users/${question.author.id}`}
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            {question.author.name}
+          </Link>
+          <span className="text-gray-700 font-semibold">
             {question.author.reputation.toLocaleString()}
           </span>
-          <span className="ml-1 sm:ml-2 flex-shrink-0">asked {question.timeAgo}</span>
+          <span className="text-gray-500">
+            asked {question.timeAgo}
+          </span>
         </div>
       </div>
     </div>

@@ -33,7 +33,7 @@ export interface Answer {
 }
 
 export interface Question {
-  id: number;
+  id: number | string; // Support both numeric IDs (mock data) and UUID strings (API)
   title: string;
   votes: number;
   answers: number;

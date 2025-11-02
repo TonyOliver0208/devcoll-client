@@ -72,6 +72,13 @@ export default function QuestionForm({
     }
   };
 
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent Enter key from submitting the form
+    if (e.key === "Enter") {
+      e.preventDefault();
+    }
+  };
+
   const handleAddTag = (tagToAdd?: string) => {
     const tagValue = tagToAdd || tagInput;
     addTag(tagValue);
@@ -193,6 +200,7 @@ export default function QuestionForm({
               placeholder="e.g. How to center a div in CSS?"
               value={formData.title}
               onChange={handleTitleChange}
+              onKeyDown={handleTitleKeyDown}
               className="text-base h-12 border-gray-300 focus:border-gray-300 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-gray-300 focus-visible:outline-none"
               maxLength={150}
               required

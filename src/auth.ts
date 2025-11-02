@@ -147,6 +147,11 @@ async function exchangeGoogleTokens(account: any) {
 async function refreshAccessToken(token: any) {
   try {
     console.log("🔄 [NextAuth] Refreshing access token with backend...");
+    console.log("🔍 [NextAuth] Refresh token preview:", {
+      hasRefreshToken: !!token.refreshToken,
+      refreshTokenLength: token.refreshToken?.length || 0,
+      accessTokenExpires: token.accessTokenExpires ? new Date(token.accessTokenExpires).toISOString() : 'N/A'
+    });
 
     const response: AuthServiceResponse = await authApi.post(
       "/refresh",
@@ -161,13 +166,21 @@ async function refreshAccessToken(token: any) {
     console.log("✅ [NextAuth] Token refresh successful");
 
     if (response.success && response.data) {
+      const newAccessTokenExpires = response.data.expiresIn
+        ? Date.now() + response.data.expiresIn * 1000
+        : Date.now() + 15 * 60 * 1000;
+      
+      console.log("🔍 [NextAuth] New token details:", {
+        hasNewAccessToken: !!response.data.accessToken,
+        hasNewRefreshToken: !!response.data.refreshToken,
+        newAccessTokenExpires: new Date(newAccessTokenExpires).toISOString()
+      });
+
       return {
         ...token,
         accessToken: response.data.accessToken,
         refreshToken: response.data.refreshToken || token.refreshToken,
-        accessTokenExpires: response.data.expiresIn
-          ? Date.now() + response.data.expiresIn * 1000
-          : Date.now() + 15 * 60 * 1000,
+        accessTokenExpires: newAccessTokenExpires,
         error: undefined,
       };
     }
@@ -176,6 +189,21 @@ async function refreshAccessToken(token: any) {
     return { ...token, error: "RefreshAccessTokenError" };
   } catch (error) {
     console.error("❌ [NextAuth] Token refresh failed:", error);
+    
+    // Log specific error details
+    if (axios.isAxiosError(error)) {
+      console.error("🔍 [NextAuth] Refresh error details:", {
+        status: error.response?.status,
+        message: error.response?.data?.message || error.message,
+        isInvalidToken: error.response?.status === 401
+      });
+      
+      // 401 means the refresh token is invalid/expired
+      if (error.response?.status === 401) {
+        console.error("🚫 [NextAuth] Refresh token is invalid/expired - marking for re-authentication");
+      }
+    }
+    
     return { ...token, error: "RefreshAccessTokenError" };
   }
 }
@@ -281,8 +309,7 @@ export function getAuthErrorMessage(error?: string | null): { title: string; mes
  */
 export async function checkAuthServiceHealth(): Promise<boolean> {
   try {
-    // Check API Gateway health instead of auth service directly
-    const response = await axios.get(`${API_GATEWAY_URL}/v1/health`, {
+    const response = await axios.get(`${API_GATEWAY_URL}/health`, {
       timeout: 3000, // Shorter timeout for health checks
     });
     return response.status === 200;
@@ -298,6 +325,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Custom error page for authentication failures
     error: '/auth/error',
     signIn: '/auth/signin', // Optional: Custom sign-in page
+  },
+  session: {
+    strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7 days - matches refresh token lifetime
+  },
+  jwt: {
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   },
   callbacks: {
     // 🔥 CRITICAL: This callback completely blocks sign-in if backend validation fails
@@ -368,7 +402,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return true; // Allow other sign-in methods
     },
 
-    async jwt({ token, account, user }) {
+    async jwt({ token, account, user, trigger }) {
       // Initial sign in - use backend tokens from signIn callback (already validated)
       if (account && (account.type === "oauth" || account.type === "oidc")) {
         console.log("🔐 [NextAuth] JWT callback - using backend tokens from signIn");
@@ -396,11 +430,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             refreshToken: authTokens.refreshToken,
             accessTokenExpires: authTokens.accessTokenExpires,
             refreshTokenExpires: authTokens.refreshTokenExpires,
+            error: undefined, // Clear any previous errors
           };
         } else {
           console.error("🚨 [NextAuth] No backend tokens found from signIn callback");
           return { ...token, error: "NoBackendTokens" };
         }
+      }
+
+      // 🔥 If there's a token error, don't continue - force re-authentication
+      if (token.error === "RefreshAccessTokenError") {
+        console.error("🚫 [NextAuth] Token refresh previously failed - session invalid");
+        return { ...token, error: "RefreshAccessTokenError" };
       }
 
       // Handle token refresh
@@ -424,6 +465,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     async session({ session, token }) {
       console.log("📋 [NextAuth] Session callback - creating session");
+
+      // 🔥 CRITICAL: If token refresh failed, throw error to force re-authentication
+      if (token.error === "RefreshAccessTokenError") {
+        console.error("🚫 [NextAuth] Session blocked - refresh token failed, user must re-login");
+        throw new Error("Session expired. Please sign in again.");
+      }
 
       // 🔥 CRITICAL: Only create session if we have valid backend tokens
       if (!token.accessToken || !token.refreshToken) {

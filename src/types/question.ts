@@ -7,6 +7,7 @@ export interface Question {
   tags: string[];
   timeAgo: string;
   author: {
+    id: string;
     name: string;
     reputation: number;
     avatar?: string;
@@ -14,6 +15,7 @@ export interface Question {
   hasAcceptedAnswer?: boolean;
   bountyAmount?: number;
   excerpt?: string;
+  content?: string;
   // User interaction states
   isBookmarked?: boolean;
   isWatching?: boolean;

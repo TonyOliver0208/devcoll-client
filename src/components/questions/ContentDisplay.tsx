@@ -16,6 +16,21 @@ const ContentDisplay = ({ content, contentJson, className = "" }: ContentDisplay
   
   // Fallback to legacy markdown renderer for backwards compatibility
   if (!content) return null;
+  
+  // Check if content contains HTML tags (from rich text editor)
+  const containsHTML = /<[^>]+>/.test(content);
+  
+  if (containsHTML) {
+    // Render as HTML (sanitized by the backend)
+    return (
+      <div 
+        className={`prose prose-slate max-w-none ${className}`}
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    );
+  }
+  
+  // Otherwise, render as markdown
   const renderMarkdown = (text: string) => {
     // Split content by code blocks first
     const parts = text.split(/(```[\s\S]*?```)/);
