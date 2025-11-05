@@ -23,7 +23,8 @@ export const useQuestions = (params?: {
   return useQuery({
     queryKey: questionKeys.list(params),
     queryFn: () => questionsApi.getQuestions(params),
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 30 * 1000, // 30 seconds - shorter time for more frequent updates
+    refetchOnWindowFocus: true, // Refetch when user returns to the tab
     ...options, // Allow additional query options
   })
 }
@@ -53,9 +54,16 @@ export const useCreateQuestion = () => {
       }
       return questionsApi.createQuestion(data)
     },
-    onSuccess: () => {
-      // Invalidate questions list to refetch
-      queryClient.invalidateQueries({ queryKey: questionKeys.lists() })
+    onSuccess: async (newQuestion) => {
+      console.log('[useCreateQuestion] Question created, invalidating cache...', newQuestion)
+      
+      // Invalidate and refetch questions list immediately
+      await queryClient.invalidateQueries({ 
+        queryKey: questionKeys.lists(),
+        refetchType: 'active', // Only refetch queries that are currently being used
+      })
+      
+      console.log('[useCreateQuestion] Cache invalidated successfully')
     },
     onError: (error) => {
       console.error('Question creation failed:', handleAPIError(error))

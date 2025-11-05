@@ -42,19 +42,22 @@ export default function AddQuestionPage() {
       }
 
       // Call the API to create question
-      await createQuestionMutation.mutateAsync({
+      const newQuestion = await createQuestionMutation.mutateAsync({
         title: data.title,
         content: contentText,
         tags: data.tags || [],
       });
 
-      console.log("Question created successfully!");
+      console.log("Question created successfully!", newQuestion);
       
       // Reset form after successful submission
       resetForm();
 
+      // Small delay to ensure cache invalidation completes
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // Redirect back to questions
-      router.push("/questions");
+      router.push("/");
     } catch (error) {
       console.error("Error creating question:", error);
       alert(`Failed to create question: ${handleAPIError(error)}`);
