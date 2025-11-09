@@ -6,9 +6,10 @@ import Sidebar from "@/components/layout/Sidebar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
+  fullWidth?: boolean; // Option to render without sidebar constraint
 }
 
-export default function AppLayout({ children }: AppLayoutProps) {
+export default function AppLayout({ children, fullWidth = false }: AppLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleMenuClick = () => {
@@ -24,18 +25,26 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <Header onMenuClick={handleMenuClick} isSidebarOpen={isSidebarOpen} />
 
       <div className="max-w-7xl mx-auto bg-white min-h-screen">
-        <div className="flex">
-          <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
+        {fullWidth ? (
+          // Full width layout for pages like 404
+          <div className="w-full">
+            {children}
+          </div>
+        ) : (
+          // Normal layout with sidebar
+          <div className="flex">
+            <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
 
-          {isSidebarOpen && (
-            <div
-              className="fixed top-[50px] left-0 right-0 bottom-0 bg-black bg-opacity-20 z-30 lg:hidden"
-              onClick={handleSidebarClose}
-            />
-          )}
+            {isSidebarOpen && (
+              <div
+                className="fixed top-[50px] left-0 right-0 bottom-0 bg-black bg-opacity-20 z-30 lg:hidden"
+                onClick={handleSidebarClose}
+              />
+            )}
 
-          {children}
-        </div>
+            {children}
+          </div>
+        )}
       </div>
     </div>
   );

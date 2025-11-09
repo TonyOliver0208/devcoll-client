@@ -17,8 +17,8 @@ export default function TagCard({ tag }: TagCardProps) {
     <Card className="h-full hover:shadow-md transition-shadow duration-200 border border-gray-200 rounded-md">
       <CardContent className="px-3 py-0 -my-3">
         <div className="mb-2">
-          <Link href={`/questions/tagged/${tag.id}`}>
-            <div className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-sm text-sm font-medium hover:bg-blue-200 transition-colors">
+          <Link href={`/questions/tagged/${encodeURIComponent(tag.name)}`}>
+            <div className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-sm text-sm font-medium hover:bg-blue-200 transition-colors cursor-pointer">
               {tag.name}
             </div>
           </Link>

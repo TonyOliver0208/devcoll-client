@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { FileQuestion, Home, Search } from 'lucide-react'
+import AppLayout from '@/components/layout/AppLayout'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="max-w-lg w-full text-center">
+    <AppLayout fullWidth>
+      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12 w-full">
+        <div className="max-w-lg w-full text-center">
         <div className="mb-8">
           <FileQuestion className="mx-auto h-20 w-20 text-gray-400 mb-6" />
           <h1 className="text-6xl font-bold text-gray-300 mb-4">404</h1>
@@ -61,5 +63,6 @@ export default function NotFound() {
         </div>
       </div>
     </div>
+    </AppLayout>
   )
 }

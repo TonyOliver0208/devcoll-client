@@ -19,11 +19,23 @@ export const useTags = (options?: any) => {
   })
 }
 
-// Get single tag
-export const useTag = (id: string) => {
+// Get popular tags
+export const usePopularTags = (limit = 5) => {
   return useQuery({
-    queryKey: tagKeys.detail(id),
-    queryFn: () => tagsApi.getTag(id),
-    enabled: !!id,
+    queryKey: [...tagKeys.all, 'popular', limit] as const,
+    queryFn: () => tagsApi.getPopularTags(limit),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
+// Get posts by tag name
+export const usePostsByTag = (tagName: string, options?: { page?: number; limit?: number }) => {
+  return useQuery({
+    queryKey: [...tagKeys.all, 'posts', tagName, options?.page, options?.limit] as const,
+    queryFn: () => tagsApi.getPostsByTag(tagName, options),
+    enabled: !!tagName,
+    staleTime: 0, // Always consider data stale - fetch fresh data on every mount
+    refetchOnWindowFocus: true, // Refetch when user returns to the tab
+    refetchOnMount: 'always' as const, // Always refetch when component mounts
   })
 }

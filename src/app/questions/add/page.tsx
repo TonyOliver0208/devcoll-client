@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import QuestionForm from "@/components/questions/QuestionForm";
 import AIAssistantPanel from "@/components/questions/AIAssistantPanel";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ConfirmDialog } from "@/components/shared";
+import { ArrowLeft, Sparkles, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useQuestionFormStore } from "@/store";
 import { useCreateQuestion } from "@/hooks/use-questions";
@@ -14,6 +15,8 @@ import { handleAPIError } from "@/lib/api-client";
 export default function AddQuestionPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const createQuestionMutation = useCreateQuestion();
   
   const {
@@ -33,19 +36,74 @@ export default function AddQuestionPage() {
       console.log("Creating question:", data);
 
       // Extract the HTML content from Tiptap editor
-      const contentText = data.contentHtml || data.content;
+      let contentText = data.contentHtml || data.content;
       
       if (!data.title || !contentText) {
-        alert("Please provide both title and content");
+        setErrorMessage("Please provide both title and content for your question.");
+        setShowErrorDialog(true);
         setIsSubmitting(false);
         return;
       }
 
-      // Call the API to create question
+      // Handle pending images if any
+      let mediaUrls: string[] = [];
+      if (data.pendingImages && data.pendingImages.length > 0) {
+        console.log(`Uploading ${data.pendingImages.length} images...`);
+        
+        try {
+          // Import mediaApi and toast dynamically
+          const { mediaApi } = await import("@/lib/api-client");
+          const toast = (await import("react-hot-toast")).default;
+          
+          // Show uploading toast
+          const toastId = toast.loading(`Uploading ${data.pendingImages.length} image(s)...`);
+          
+          // Upload all images
+          const uploadResults = await mediaApi.uploadImages(
+            data.pendingImages.map((img: any) => img.file)
+          );
+          
+          // Dismiss loading toast and show success
+          toast.success(`${data.pendingImages.length} image(s) uploaded successfully!`, {
+            id: toastId
+          });
+          
+          console.log("Images uploaded successfully:", uploadResults);
+          
+          // Replace placeholder links with actual image URLs in content
+          uploadResults.forEach((result, index) => {
+            const pendingImage = data.pendingImages[index];
+            const placeholderPattern = new RegExp(
+              `<a[^>]*href="#image:${pendingImage.id}"[^>]*>.*?</a>`,
+              'g'
+            );
+            
+            // Replace with actual image tag
+            contentText = contentText.replace(
+              placeholderPattern,
+              `<img src="${result.url}" alt="${pendingImage.alt}" />`
+            );
+          });
+          
+          // Store media URLs for post metadata
+          mediaUrls = uploadResults.map(r => r.url);
+          
+          console.log("Content updated with image URLs");
+        } catch (uploadError) {
+          console.error("Error uploading images:", uploadError);
+          setErrorMessage(`Failed to upload images: ${handleAPIError(uploadError)}`);
+          setShowErrorDialog(true);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Call the API to create question with media URLs
       const newQuestion = await createQuestionMutation.mutateAsync({
         title: data.title,
         content: contentText,
         tags: data.tags || [],
+        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
       });
 
       console.log("Question created successfully!", newQuestion);
@@ -54,13 +112,14 @@ export default function AddQuestionPage() {
       resetForm();
 
       // Small delay to ensure cache invalidation completes
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Redirect back to questions
-      router.push("/");
+      // Redirect to questions list to see the new question
+      router.push("/questions");
     } catch (error) {
       console.error("Error creating question:", error);
-      alert(`Failed to create question: ${handleAPIError(error)}`);
+      setErrorMessage(`Failed to create question: ${handleAPIError(error)}`);
+      setShowErrorDialog(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -164,6 +223,18 @@ export default function AddQuestionPage() {
           </div>
         </div>
       </div>
+
+      {/* Error Dialog */}
+      <ConfirmDialog
+        isOpen={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        onConfirm={() => setShowErrorDialog(false)}
+        title="Error"
+        message={errorMessage}
+        confirmText="OK"
+        cancelText=""
+        confirmButtonClass="bg-blue-600 hover:bg-blue-700 text-white"
+      />
     </div>
   );
 }

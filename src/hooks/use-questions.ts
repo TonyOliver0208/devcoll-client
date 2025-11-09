@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { questionsApi, handleAPIError } from '@/lib/api-client'
 import { useAuth } from './use-auth'
+import { tagKeys } from './use-tags'
 
 // Query keys for cache management
 export const questionKeys = {
@@ -23,8 +24,9 @@ export const useQuestions = (params?: {
   return useQuery({
     queryKey: questionKeys.list(params),
     queryFn: () => questionsApi.getQuestions(params),
-    staleTime: 30 * 1000, // 30 seconds - shorter time for more frequent updates
+    staleTime: 0, // Always consider data stale for immediate updates
     refetchOnWindowFocus: true, // Refetch when user returns to the tab
+    refetchOnMount: 'always' as const, // Always refetch when component mounts
     ...options, // Allow additional query options
   })
 }
@@ -54,16 +56,56 @@ export const useCreateQuestion = () => {
       }
       return questionsApi.createQuestion(data)
     },
-    onSuccess: async (newQuestion) => {
+    onSuccess: async (newQuestion, variables) => {
       console.log('[useCreateQuestion] Question created, invalidating cache...', newQuestion)
       
       // Invalidate and refetch questions list immediately
-      await queryClient.invalidateQueries({ 
-        queryKey: questionKeys.lists(),
-        refetchType: 'active', // Only refetch queries that are currently being used
-      })
+      // Use Promise.all to wait for all invalidations to complete
+      const invalidations = [
+        queryClient.invalidateQueries({ 
+          queryKey: questionKeys.lists(),
+          refetchType: 'all', // Refetch ALL queries, not just active ones
+        }),
+        queryClient.invalidateQueries({
+          queryKey: questionKeys.all, // Invalidate all question-related queries
+          refetchType: 'all',
+        })
+      ];
       
-      console.log('[useCreateQuestion] Cache invalidated successfully')
+      // Invalidate tag-based queries for all tags in the new question
+      // This ensures that if you're viewing a tag page, it updates immediately
+      if (variables.tags && variables.tags.length > 0) {
+        console.log('[useCreateQuestion] Invalidating tag queries for:', variables.tags)
+        
+        // Invalidate all tag posts queries (this will refetch any active tag pages)
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: [...tagKeys.all, 'posts'],
+            refetchType: 'all', // Refetch all tag queries
+          })
+        );
+        
+        // Also invalidate popular tags in case the new question affects tag counts
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: [...tagKeys.all, 'popular'],
+            refetchType: 'all',
+          })
+        );
+        
+        // Invalidate tags list
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: tagKeys.all,
+            refetchType: 'all',
+          })
+        );
+      }
+      
+      // Wait for all invalidations to complete
+      await Promise.all(invalidations);
+      
+      console.log('[useCreateQuestion] Cache invalidated and refetched successfully')
     },
     onError: (error) => {
       console.error('Question creation failed:', handleAPIError(error))

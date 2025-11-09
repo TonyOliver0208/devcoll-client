@@ -20,6 +20,7 @@
     "@tanstack/react-query": "^5.86.0",
     "@tanstack/react-query-devtools": "^5.86.0",
     "@tiptap/extension-code-block-lowlight": "^3.3.0",
+    "@tiptap/extension-image": "^3.10.4",
     "@tiptap/extension-link": "^3.3.0",
     "@tiptap/extension-placeholder": "^3.3.0",
     "@tiptap/html": "^3.3.0",

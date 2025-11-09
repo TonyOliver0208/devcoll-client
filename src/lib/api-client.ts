@@ -23,11 +23,138 @@ class ApiClient {
   private baseURL: string
   private timeout: number
   private retries: number
+  private refreshPromise: Promise<boolean> | null = null
 
   constructor(baseURL: string = API_BASE_URL) {
     this.baseURL = baseURL
     this.timeout = 30000 // 30 seconds
     this.retries = 3
+  }
+
+  /**
+   * Wait for session to be available with retries (client-side only)
+   */
+  private async waitForSession(maxAttempts = 3): Promise<any> {
+    if (typeof window === 'undefined') return null
+
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const sessionResponse = await fetch('/api/auth/session')
+        if (sessionResponse.ok) {
+          const session = await sessionResponse.json()
+          if (session?.accessToken) {
+            return session
+          }
+        }
+      } catch (error) {
+        console.warn(`[API Client] Session fetch attempt ${i + 1} failed:`, error)
+      }
+      
+      // Wait before retry (exponential backoff)
+      if (i < maxAttempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, i)))
+      }
+    }
+    
+    return null
+  }
+
+  /**
+   * Refresh access token by forcing NextAuth to re-evaluate the JWT
+   * This works by setting the access token expiry to the past, triggering NextAuth's refresh logic
+   */
+  private async refreshAccessToken(): Promise<boolean> {
+    // Prevent multiple simultaneous refresh attempts
+    if (this.refreshPromise) {
+      return this.refreshPromise
+    }
+
+    this.refreshPromise = (async () => {
+      try {
+        console.log('[API Client] 🔄 Manual token refresh triggered (401 received)...')
+        
+        // Get current session
+        const sessionResponse = await fetch('/api/auth/session')
+        if (!sessionResponse.ok) {
+          throw new Error('Could not get session')
+        }
+        
+        const currentSession = await sessionResponse.json()
+        if (!currentSession?.refreshToken) {
+          console.error('[API Client] ❌ No refresh token in session - user must re-login')
+          throw new Error('No refresh token in current session')
+        }
+
+        console.log('[API Client] 🔍 Current session state:', {
+          hasAccessToken: !!currentSession.accessToken,
+          hasRefreshToken: !!currentSession.refreshToken,
+          accessTokenPreview: currentSession.accessToken?.substring(0, 30),
+          refreshTokenPreview: currentSession.refreshToken?.substring(0, 30)
+        })
+
+        // Call NextAuth's session update endpoint with trigger=update
+        // This forces NextAuth to call the jwt() callback, which will check
+        // if the access token is expired and refresh if needed
+        console.log('[API Client] 📞 Calling session update...')
+        const updateResponse = await fetch('/api/auth/session', {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        })
+
+        if (!updateResponse.ok) {
+          throw new Error(`Session update failed: ${updateResponse.status}`)
+        }
+
+        const updatedSession = await updateResponse.json()
+        
+        if (!updatedSession?.accessToken) {
+          console.error('[API Client] ❌ No access token after session update')
+          throw new Error('Session update did not return access token')
+        }
+
+        const tokenChanged = updatedSession.accessToken !== currentSession.accessToken
+
+        console.log('[API Client] ✅ Session updated', {
+          hasAccessToken: !!updatedSession.accessToken,
+          hasRefreshToken: !!updatedSession.refreshToken,
+          accessTokenChanged: tokenChanged,
+          newAccessTokenPreview: updatedSession.accessToken?.substring(0, 30),
+          newRefreshTokenPreview: updatedSession.refreshToken?.substring(0, 30)
+        })
+
+        if (!tokenChanged) {
+          console.warn('[API Client] ⚠️  Access token did not change - may still be using expired token')
+          // This can happen if NextAuth hasn't detected expiration yet
+          // Wait a moment and try one more time
+          await new Promise(resolve => setTimeout(resolve, 200))
+        }
+        
+        return true
+      } catch (error) {
+        console.error('[API Client] ❌ Token refresh failed:', error)
+        console.error('[API Client] 🔍 Error details:', {
+          message: error instanceof Error ? error.message : String(error),
+          name: error instanceof Error ? error.name : 'Unknown'
+        })
+        
+        // Session is invalid, redirect to sign in
+        if (typeof window !== 'undefined') {
+          const currentUrl = window.location.href
+          console.log('[API Client] 🔄 Session invalid - redirecting to sign in...')
+          window.location.href = `/api/auth/signin?callbackUrl=${encodeURIComponent(currentUrl)}`
+        }
+        
+        return false
+      } finally {
+        this.refreshPromise = null
+      }
+    })()
+
+    return this.refreshPromise
   }
 
   /**
@@ -51,28 +178,14 @@ class ApiClient {
             console.log('[API Client] Adding internal JWT token to request (server)')
           }
         } else {
-          // Client-side: fetch session from NextAuth session endpoint
-          try {
-            const sessionResponse = await fetch('/api/auth/session')
-            if (sessionResponse.ok) {
-              const session = await sessionResponse.json()
-              console.log('[API Client] Session data:', {
-                hasSession: !!session,
-                hasAccessToken: !!session?.accessToken,
-                accessTokenLength: session?.accessToken?.length,
-                sessionKeys: Object.keys(session || {}),
-              })
-              if (session?.accessToken) {
-                headers['Authorization'] = `Bearer ${session.accessToken}`
-                console.log('[API Client] Adding internal JWT token to request (client)')
-              } else {
-                console.warn('[API Client] Client-side request - no access token in session', session)
-              }
-            } else {
-              console.warn('[API Client] Session fetch failed:', sessionResponse.status)
-            }
-          } catch (fetchError) {
-            console.warn('[API Client] Could not fetch client session:', fetchError)
+          // Client-side: wait for session with retry logic
+          const session = await this.waitForSession()
+          
+          if (session?.accessToken) {
+            headers['Authorization'] = `Bearer ${session.accessToken}`
+            console.log('[API Client] Adding internal JWT token to request (client)')
+          } else {
+            console.warn('[API Client] Client-side request - no access token available after retries')
           }
         }
       } catch (sessionError) {
@@ -98,12 +211,18 @@ class ApiClient {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    attempt = 1
+    attempt = 1,
+    retryOn401 = true
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
     try {
       const headers = await this.getAuthHeaders()
+      
+      // If body is FormData, remove Content-Type header (browser will set it with boundary)
+      if (options.body instanceof FormData) {
+        delete headers['Content-Type']
+      }
       
       console.log(`[API Request] ${options.method || 'GET'} ${endpoint}`, {
         attempt,
@@ -145,6 +264,26 @@ class ApiClient {
         message: responseData.message,
         hasData: !!responseData.data
       })
+
+      // Handle 401 Unauthorized - try to refresh token
+      if (response.status === 401 && retryOn401 && typeof window !== 'undefined') {
+        console.log('[API Client] 401 Unauthorized - attempting token refresh')
+        
+        const refreshed = await this.refreshAccessToken()
+        if (refreshed) {
+          // Retry the request with new token (only once)
+          console.log('[API Client] Retrying request with new token')
+          return this.request<T>(endpoint, options, attempt, false)
+        } else {
+          // Refresh failed, throw the 401 error
+          const apiError: ApiError = {
+            message: 'Authentication failed - please sign in again',
+            status: 401,
+            code: 'UNAUTHENTICATED',
+          }
+          throw apiError
+        }
+      }
 
       // Handle non-2xx responses
       if (!response.ok) {
@@ -205,17 +344,27 @@ class ApiClient {
   }
 
   async post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+    // Check if data is FormData - if so, don't stringify it
+    const body = data instanceof FormData 
+      ? data 
+      : data ? JSON.stringify(data) : undefined;
+    
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body,
       ...options,
     })
   }
 
   async put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+    // Check if data is FormData - if so, don't stringify it
+    const body = data instanceof FormData 
+      ? data 
+      : data ? JSON.stringify(data) : undefined;
+    
     return this.request<T>(endpoint, {
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
+      body,
       ...options,
     })
   }
@@ -235,6 +384,19 @@ const mapPostToQuestion = (post: any): Question => {
   const title = extractTitle(fullContent);
   const contentBody = extractContentBody(fullContent);
   
+  // Transform tags: backend returns array of objects with {id, name, description}
+  // frontend expects array of strings (tag names)
+  const tags = Array.isArray(post.tags) 
+    ? post.tags.map((tag: any) => {
+        // If tag is already a string, return it
+        if (typeof tag === 'string') return tag;
+        // If tag is an object with name property, extract the name
+        if (tag && typeof tag === 'object' && tag.name) return tag.name;
+        // Fallback: return empty string and filter out later
+        return '';
+      }).filter((tag: string) => tag !== '')
+    : [];
+  
   return {
     id: post.id, // Keep as string (UUID from backend) or number (mock data)
     title: title,
@@ -243,7 +405,7 @@ const mapPostToQuestion = (post: any): Question => {
     votes: post.likesCount || 0,
     answers: post.commentsCount || 0,
     views: 0, // Backend doesn't track views yet
-    tags: post.tags || [],
+    tags: tags,
     timeAgo: formatTimeAgo(post.createdAt),
     author: {
       id: post.userId,
@@ -342,9 +504,10 @@ export const questionsApi = {
     title: string;
     content: string;
     tags: string[];
+    mediaUrls?: string[];
   }): Promise<Question> => {
-    // Backend expects: { content, mediaUrls?, privacy? }
-    // Frontend sends: { title, content, tags }
+    // Backend expects: { content, mediaUrls?, privacy?, tags? }
+    // Frontend sends: { title, content, tags, mediaUrls? }
     // Note: content might be from Tiptap editor (contentHtml) or plain string
     
     // If content is an object (Tiptap editor state), we need contentHtml
@@ -353,10 +516,15 @@ export const questionsApi = {
       contentText = (data as any).contentHtml;
     }
     
-    const postData = {
+    const postData: any = {
       content: `${data.title}\n\n${contentText}`,
       privacy: 'PUBLIC',
-      // Note: Backend doesn't support tags yet
+      tags: data.tags, // Send tags to backend
+    }
+    
+    // Add media URLs if provided
+    if (data.mediaUrls && data.mediaUrls.length > 0) {
+      postData.mediaUrls = data.mediaUrls;
     }
     
     console.log('[API Client] Creating post with data:', postData);
@@ -449,31 +617,87 @@ export const authApi = {
 }
 
 export const tagsApi = {
-  // Note: Backend doesn't have tags service yet
-  // These endpoints will return mock data until backend is implemented
-  getTags: (): Promise<Tag[]> => {
-    console.warn('Tags API not implemented in backend yet')
-    return Promise.resolve([])
+  // Get all tags with pagination
+  getTags: (params?: { page?: number; limit?: number }): Promise<{ tags: Tag[]; total: number }> => {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    const queryString = queryParams.toString()
+    return apiClient.get(`/posts/tags${queryString ? `?${queryString}` : ''}`)
   },
     
-  getTag: (id: string): Promise<Tag> => {
-    console.warn('Tags API not implemented in backend yet')
-    return Promise.reject(new Error('Tags API not implemented'))
+  // Get popular tags (default 5)
+  getPopularTags: (limit = 5): Promise<{ tags: Tag[]; total: number }> => {
+    return apiClient.get(`/posts/tags/popular?limit=${limit}`)
   },
     
+  // Get posts by tag name
+  getPostsByTag: async (tagName: string, params?: { page?: number; limit?: number }): Promise<any> => {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    const queryString = queryParams.toString()
+    const response = await apiClient.get<any>(`/posts/tags/${encodeURIComponent(tagName)}${queryString ? `?${queryString}` : ''}`)
+    
+    // Transform posts to questions format with proper tag handling
+    if (response.posts && Array.isArray(response.posts)) {
+      return {
+        ...response,
+        posts: response.posts.map(mapPostToQuestion)
+      }
+    }
+    return response
+  },
+    
+  // Create a new tag (admin only)
   createTag: (data: { name: string; description?: string }): Promise<Tag> => {
-    console.warn('Tags API not implemented in backend yet')
-    return Promise.reject(new Error('Tags API not implemented'))
+    return apiClient.post('/posts/tags', data)
   },
-    
-  updateTag: (id: string, data: { name?: string; description?: string }): Promise<Tag> => {
-    console.warn('Tags API not implemented in backend yet')
-    return Promise.reject(new Error('Tags API not implemented'))
+}
+
+export const commentsApi = {
+  // Get comments for a post
+  getComments: (postId: string, params?: { page?: number; limit?: number }): Promise<any> => {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    const queryString = queryParams.toString()
+    return apiClient.get(`/posts/${postId}/comments${queryString ? `?${queryString}` : ''}`)
   },
+
+  // Create a comment on a post
+  createComment: (postId: string, data: { content: string; parentId?: string }): Promise<any> => {
+    return apiClient.post(`/posts/${postId}/comments`, data)
+  },
+
+  // Delete a comment
+  deleteComment: (commentId: string): Promise<any> => {
+    return apiClient.delete(`/posts/comments/${commentId}`)
+  },
+}
+
+export const mediaApi = {
+  // Upload a single image file
+  uploadImage: async (file: File): Promise<{ url: string; publicId: string; mediaId: string }> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', 'image')
     
-  deleteTag: (id: string): Promise<void> => {
-    console.warn('Tags API not implemented in backend yet')
-    return Promise.reject(new Error('Tags API not implemented'))
+    // Don't pass headers option - let apiClient.post handle all headers including auth
+    // Browser will automatically set Content-Type with boundary for FormData
+    const response = await apiClient.post<any>('/media/upload', formData)
+    
+    return {
+      url: response.url,
+      publicId: response.publicId,
+      mediaId: response.id || response._id,
+    }
+  },
+  
+  // Upload multiple images
+  uploadImages: async (files: File[]): Promise<Array<{ url: string; publicId: string; mediaId: string }>> => {
+    const uploadPromises = files.map(file => mediaApi.uploadImage(file))
+    return Promise.all(uploadPromises)
   },
 }
 

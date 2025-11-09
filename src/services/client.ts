@@ -12,7 +12,7 @@ import axios from 'axios';
 import { getSession } from 'next-auth/react';
 
 // Backend microservice URL - configured via environment variables
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:4000/api/v1';
 
 /**
  * Main API client instance with pre-configured settings

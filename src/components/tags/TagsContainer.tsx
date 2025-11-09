@@ -15,7 +15,7 @@ export default function TagsContainer({ tags: legacyTags }: TagsPageProps) {
   
   // Use React Query for data fetching
   const { 
-    data: queryTags, 
+    data: queryData, 
     isLoading, 
     isError, 
     error, 
@@ -29,8 +29,11 @@ export default function TagsContainer({ tags: legacyTags }: TagsPageProps) {
     setSearchQuery,
   } = useTagsStore();
 
+  // Extract tags array from API response: { tags: Tag[], total: number }
+  const queryTags = (queryData as { tags?: Tag[]; total?: number })?.tags || [];
+  
   // Priority: legacy tags > React Query data > empty array
-  const allTags: Tag[] = legacyTags || (queryTags as Tag[]) || [];
+  const allTags: Tag[] = legacyTags || queryTags || [];
   const loading = shouldUseQuery ? isLoading : false;
   const errorState = shouldUseQuery && isError ? (error?.message || 'Failed to load tags') : null;
 

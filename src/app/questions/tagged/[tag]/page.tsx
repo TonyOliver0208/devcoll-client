@@ -5,7 +5,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { QuestionsContainer } from "@/components/shared";
 import { mockQuestions } from "@/constants/questions";
 import { USE_MOCK_DATA } from "@/config/data-source";
-import { useQuestions } from "@/hooks/use-questions";
+import { usePostsByTag } from "@/hooks/use-tags";
 
 export default function TagQuestionsPage() {
   const params = useParams();
@@ -13,6 +13,12 @@ export default function TagQuestionsPage() {
   
   // Decode the tag name from URL (in case it contains special characters)
   const tagName = decodeURIComponent(tagId);
+
+  // Fetch posts by tag from API using the custom hook
+  const { data: taggedPosts, isLoading, error } = usePostsByTag(tagName, { 
+    page: 1, 
+    limit: 50 
+  });
 
   // Use mock data or API based on configuration
   if (USE_MOCK_DATA) {
@@ -39,13 +45,31 @@ export default function TagQuestionsPage() {
     );
   }
 
-  // API mode: Use React Query with tag filter
-  // Note: Backend doesn't support tags yet, so this will show all questions
-  // TODO: Update when backend adds tag filtering support
+  // API mode: Use real backend data
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-lg">Loading questions tagged with {tagName}...</div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-lg text-red-500">Error loading questions: {error.message}</div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <QuestionsContainer 
-        questions={undefined} // Will use React Query
+        questions={taggedPosts?.posts || []} // Use posts from API
         showHeader={true}
         showFilters={true}
         showWelcome={false}

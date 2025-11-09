@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import TiptapEditor from "@/components/questions/TiptapEditor";
+import { ConfirmDialog } from "@/components/shared";
 import { X } from "lucide-react";
 import { useQuestionFormStore } from "@/store";
 
@@ -55,9 +56,15 @@ export default function QuestionForm({
   } = useQuestionFormStore();
 
   const [formErrors, setFormErrors] = React.useState<string[]>([]);
+  const [showDiscardDialog, setShowDiscardDialog] = React.useState(false);
+  const [pendingImages, setPendingImages] = React.useState<any[]>([]);
 
-  const handleContentChange = (json: any, html?: string) => {
+  const handleContentChange = (json: any, html?: string, images?: any[]) => {
     setContent(json, html);
+    // Store pending images if provided
+    if (images !== undefined) {
+      setPendingImages(images);
+    }
     // Clear errors when user starts typing
     if (formErrors.length > 0) {
       setFormErrors([]);
@@ -111,14 +118,12 @@ export default function QuestionForm({
     await triggerAIAnalysis();
   };
 
-  const handleDiscardDraft = async () => {
-    if (
-      window.confirm(
-        "Are you sure you want to discard your draft? This action cannot be undone."
-      )
-    ) {
-      await discardDraft();
-    }
+  const handleDiscardDraft = () => {
+    setShowDiscardDialog(true);
+  };
+
+  const confirmDiscardDraft = async () => {
+    await discardDraft();
   };
 
   // Load draft on component mount
@@ -137,7 +142,12 @@ export default function QuestionForm({
 
     // Clear errors if validation passes
     setFormErrors([]);
-    await onSubmit(formData);
+    
+    // Pass form data with pending images
+    await onSubmit({
+      ...formData,
+      pendingImages,
+    });
   };
 
   const { isValid } = validateForm();
@@ -410,6 +420,18 @@ export default function QuestionForm({
           )}
         </Button>
       </div>
+
+      {/* Discard Draft Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDiscardDialog}
+        onClose={() => setShowDiscardDialog(false)}
+        onConfirm={confirmDiscardDraft}
+        title="Discard Draft?"
+        message="Are you sure you want to discard your draft? This action cannot be undone and all your progress will be lost."
+        confirmText="Discard"
+        cancelText="Keep Draft"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
     </form>
   );
 }

@@ -17,9 +17,24 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
 
     switch (node.type) {
       case 'paragraph':
+        // Render paragraph children but filter out stray bracket-only text nodes
+        // that some editors may insert around non-text nodes (e.g. [ image ]).
+        const paragraphChildren = node.content ? node.content : [];
+        // Build rendered children, skipping bracket-only text nodes that directly
+        // surround other nodes (common artifact when serializing images).
+        const renderedParagraphChildren = paragraphChildren
+          .filter((child: any, idx: number) => {
+            // If the child is a text node that is exactly '[' or ']', skip it
+            if (child.type === 'text' && (child.text === '[' || child.text === ']')) {
+              return false;
+            }
+            return true;
+          })
+          .map((child: any, i: number) => renderNode(child, i));
+
         return (
           <p key={key} className="mb-4 leading-6">
-            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+            {renderedParagraphChildren}
           </p>
         );
 
@@ -142,6 +157,20 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
 
       case 'hardBreak':
         return <br key={key} />;
+
+      case 'image':
+        // Tiptap image node
+        const { src, alt, title } = node.attrs || {};
+        return (
+          <div key={key} className="my-4">
+            <img
+              src={src}
+              alt={alt || title || ''}
+              title={title || undefined}
+              className="max-w-full h-auto border border-gray-200 rounded"
+            />
+          </div>
+        );
 
       default:
         // For unknown node types, try to render children

@@ -36,6 +36,7 @@ export const config = {
     '/register',
     '/forgot-password',
     '/questions/add',
+    '/questions/:path*/edit', // Only protect edit pages
     '/dashboard/:path*'
   ]
 };

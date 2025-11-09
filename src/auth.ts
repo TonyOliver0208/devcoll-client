@@ -170,17 +170,35 @@ async function refreshAccessToken(token: any) {
         ? Date.now() + response.data.expiresIn * 1000
         : Date.now() + 15 * 60 * 1000;
       
+      const newRefreshTokenExpires = response.data.refreshExpiresIn
+        ? Date.now() + response.data.refreshExpiresIn * 1000
+        : Date.now() + 7 * 24 * 60 * 60 * 1000;
+      
       console.log("🔍 [NextAuth] New token details:", {
         hasNewAccessToken: !!response.data.accessToken,
         hasNewRefreshToken: !!response.data.refreshToken,
-        newAccessTokenExpires: new Date(newAccessTokenExpires).toISOString()
+        newAccessTokenExpires: new Date(newAccessTokenExpires).toISOString(),
+        newRefreshTokenExpires: new Date(newRefreshTokenExpires).toISOString(),
+        oldRefreshTokenPreview: token.refreshToken?.toString().substring(0, 50),
+        newRefreshTokenPreview: response.data.refreshToken?.substring(0, 50)
       });
+
+      // ⚠️ CRITICAL: Use the NEW refresh token from the response
+      // The backend deletes the old refresh token and creates a new one
+      const updatedRefreshToken = response.data.refreshToken || token.refreshToken;
+      
+      if (!response.data.refreshToken) {
+        console.error("🚨 [NextAuth] Backend did not return new refresh token! This will cause next refresh to fail!");
+      } else {
+        console.log("✅ [NextAuth] Using NEW refresh token from backend");
+      }
 
       return {
         ...token,
         accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken || token.refreshToken,
+        refreshToken: updatedRefreshToken,
         accessTokenExpires: newAccessTokenExpires,
+        refreshTokenExpires: newRefreshTokenExpires,
         error: undefined,
       };
     }

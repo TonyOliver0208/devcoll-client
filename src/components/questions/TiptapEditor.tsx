@@ -16,6 +16,9 @@ import {
   ExternalLink,
   Edit,
   Trash2,
+  ImageIcon,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +42,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { createLowlight } from "lowlight";
+import toast from "react-hot-toast";
 import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
 import python from "highlight.js/lib/languages/python";
@@ -130,9 +134,16 @@ const CustomLink = Link.extend({
   },
 });
 
+export interface PendingImage {
+  id: string;
+  file: File;
+  previewUrl: string;
+  alt: string;
+}
+
 interface TiptapEditorProps {
   value?: string;
-  onChange: (json: any, html?: string) => void;
+  onChange: (json: any, html?: string, pendingImages?: PendingImage[]) => void;
   placeholder?: string;
   className?: string;
   minHeight?: string;
@@ -153,7 +164,13 @@ const TiptapEditor = ({
   const [linkPopupPosition, setLinkPopupPosition] = useState({ x: 0, y: 0 });
   const [selectedLinkUrl, setSelectedLinkUrl] = useState("");
   const [urlError, setUrlError] = useState("");
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [imageAltText, setImageAltText] = useState("");
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const linkPopupRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -198,7 +215,7 @@ const TiptapEditor = ({
     ],
     content: value,
     onUpdate: ({ editor }) => {
-      onChange(editor.getJSON(), editor.getHTML());
+      onChange(editor.getJSON(), editor.getHTML(), pendingImages);
     },
     editorProps: {
       attributes: {
@@ -456,6 +473,114 @@ const TiptapEditor = ({
     editor.chain().focus().toggleCodeBlock().run();
   }, [editor]);
 
+  // Handle image file selection - show preview dialog
+  const handleImageFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreviewUrl(previewUrl);
+    setSelectedImageFile(file);
+    setImageAltText('');
+    setImageDialogOpen(true);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
+
+  // Handle image upload confirmation - store as pending, don't upload yet
+  const handleImageUploadConfirm = useCallback(() => {
+    if (!editor || !selectedImageFile) return;
+
+    // Generate unique ID for this image
+    const imageId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create pending image object
+    const pendingImage: PendingImage = {
+      id: imageId,
+      file: selectedImageFile,
+      previewUrl: imagePreviewUrl,
+      alt: imageAltText || selectedImageFile.name,
+    };
+    
+    // Add to pending images list
+    const updatedPendingImages = [...pendingImages, pendingImage];
+    setPendingImages(updatedPendingImages);
+    
+    // Insert placeholder link in editor
+    const linkText = imageAltText || selectedImageFile.name;
+    editor.chain().focus().insertContent([
+      {
+        type: 'text',
+        text: '[',
+      },
+      {
+        type: 'text',
+        text: `📷 ${linkText}`,
+        marks: [
+          {
+            type: 'link',
+            attrs: {
+              href: `#image:${imageId}`,
+              class: 'image-placeholder text-blue-600 underline',
+            },
+          },
+        ],
+      },
+      {
+        type: 'text',
+        text: ']',
+      },
+      {
+        type: 'text',
+        text: ' ',
+      },
+    ]).run();
+    
+    // Notify parent component about the updated images
+    onChange(editor.getJSON(), editor.getHTML(), updatedPendingImages);
+    
+    toast.success(`Image "${linkText}" added (will upload when you save)`);
+    
+    // Clean up
+    setImageDialogOpen(false);
+    setSelectedImageFile(null);
+    setImageAltText('');
+    // Don't revoke preview URL - we need it until upload
+  }, [editor, selectedImageFile, imageAltText, imagePreviewUrl, pendingImages, onChange]);
+
+  // Handle image dialog cancel
+  const handleImageDialogCancel = useCallback(() => {
+    setImageDialogOpen(false);
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+    setImagePreviewUrl('');
+    setSelectedImageFile(null);
+    setImageAltText('');
+  }, [imagePreviewUrl]);
+
+  // Trigger file input click
+  const triggerImageUpload = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
   if (!isMounted) {
     return (
       <div className="relative group">
@@ -527,6 +652,7 @@ const TiptapEditor = ({
             {/* Text Formatting Group */}
             <div className="flex items-center gap-0.5">
               <Button
+                type="button"
                 variant={editor.isActive("bold") ? "default" : "ghost"}
                 size="sm"
                 className={`h-8 w-8 p-0 ${
@@ -540,6 +666,7 @@ const TiptapEditor = ({
                 <Bold className="w-4 h-4" />
               </Button>
               <Button
+                type="button"
                 variant={editor.isActive("italic") ? "default" : "ghost"}
                 size="sm"
                 className={`h-8 w-8 p-0 ${
@@ -559,6 +686,7 @@ const TiptapEditor = ({
             {/* Code Group */}
             <div className="flex items-center gap-0.5">
               <Button
+                type="button"
                 variant={editor.isActive("code") ? "default" : "ghost"}
                 size="sm"
                 className={`h-8 w-8 p-0 ${
@@ -572,6 +700,7 @@ const TiptapEditor = ({
                 <Code className="w-4 h-4" />
               </Button>
               <Button
+                type="button"
                 variant={editor.isActive("codeBlock") ? "default" : "ghost"}
                 size="sm"
                 className={`h-8 w-8 p-0 ${
@@ -588,9 +717,10 @@ const TiptapEditor = ({
 
             <div className="w-px h-6 bg-gray-300 mx-1" />
 
-            {/* Link & Quote Group */}
+            {/* Link, Image & Quote Group */}
             <div className="flex items-center gap-0.5">
               <Button
+                type="button"
                 variant={editor.isActive("link") ? "default" : "ghost"}
                 size="sm"
                 className={`h-8 w-8 p-0 ${
@@ -604,6 +734,17 @@ const TiptapEditor = ({
                 <LinkIcon className="w-4 h-4" />
               </Button>
               <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-gray-200"
+                onClick={triggerImageUpload}
+                title="Add Image"
+              >
+                <ImageIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                type="button"
                 variant={editor.isActive("blockquote") ? "default" : "ghost"}
                 size="sm"
                 className={`h-8 w-8 p-0 ${
@@ -623,6 +764,7 @@ const TiptapEditor = ({
             {/* Lists Group */}
             <div className="flex items-center gap-0.5">
               <Button
+                type="button"
                 variant={editor.isActive("bulletList") ? "default" : "ghost"}
                 size="sm"
                 className={`h-8 w-8 p-0 ${
@@ -636,6 +778,7 @@ const TiptapEditor = ({
                 <List className="w-4 h-4" />
               </Button>
               <Button
+                type="button"
                 variant={editor.isActive("orderedList") ? "default" : "ghost"}
                 size="sm"
                 className={`h-8 w-8 p-0 ${
@@ -655,6 +798,7 @@ const TiptapEditor = ({
             {/* Undo/Redo Group */}
             <div className="flex items-center gap-0.5">
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 className="h-8 w-8 p-0 hover:bg-gray-200"
@@ -665,6 +809,7 @@ const TiptapEditor = ({
                 <Undo className="w-4 h-4" />
               </Button>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 className="h-8 w-8 p-0 hover:bg-gray-200"
@@ -679,6 +824,15 @@ const TiptapEditor = ({
 
           {/* Editor Content */}
           <EditorContent editor={editor} className="prose-editor-content" />
+
+          {/* Hidden File Input for Image Upload */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageFileSelect}
+            className="hidden"
+          />
 
           {/* Link Dialog */}
           <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
@@ -724,6 +878,56 @@ const TiptapEditor = ({
                 </Button>
                 <Button onClick={handleLinkSave} disabled={!linkUrl.trim()}>
                   Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Image Preview Dialog */}
+          <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Add Image</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {/* Image Preview */}
+                {imagePreviewUrl && (
+                  <div className="relative border rounded-lg overflow-hidden bg-gray-50">
+                    <img
+                      src={imagePreviewUrl}
+                      alt="Preview"
+                      className="w-full h-auto max-h-96 object-contain"
+                    />
+                  </div>
+                )}
+                {/* Alt Text Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="image-alt">
+                    Image Description (Alt Text)
+                  </Label>
+                  <Input
+                    id="image-alt"
+                    placeholder="Describe the image (e.g., 'Screenshot of error code')"
+                    value={imageAltText}
+                    onChange={(e) => setImageAltText(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">
+                    This description will appear as a link in the editor. Image uploads when you save the post.
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={handleImageDialogCancel}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleImageUploadConfirm}
+                >
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  Add Image Link
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -867,6 +1071,25 @@ const TiptapEditor = ({
 
             .ProseMirror ul ul ul {
               list-style-type: square;
+            }
+
+            .ProseMirror img {
+              max-width: 100%;
+              height: auto;
+              border-radius: 0.5rem;
+              margin: 1rem 0;
+              display: block;
+              box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+              cursor: pointer;
+            }
+
+            .ProseMirror img:hover {
+              box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            }
+
+            .ProseMirror img.ProseMirror-selectednode {
+              outline: 3px solid #3b82f6;
+              outline-offset: 2px;
             }
 
             .ProseMirror a {
