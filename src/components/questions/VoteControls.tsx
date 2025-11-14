@@ -22,6 +22,7 @@ interface VoteControlsProps {
   isUpvoted?: boolean;
   isDownvoted?: boolean;
   isBookmarked?: boolean;
+  isLoading?: boolean; // Loading state for voting
   // Add question data for saving
   questionData?: {
     id: string;
@@ -47,6 +48,7 @@ const VoteControls = ({
   isUpvoted = false,
   isDownvoted = false,
   isBookmarked = false,
+  isLoading = false,
   questionData,
 }: VoteControlsProps) => {
   const { data: session } = useSession();
@@ -56,8 +58,10 @@ const VoteControls = ({
   const [showListDialog, setShowListDialog] = useState(false);
   const [selectedList, setSelectedList] = useState("For later");
   const [notificationMessage, setNotificationMessage] = useState("");
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
 
-  const handleBookmarkClick = () => {
+  const handleBookmarkClick = async () => {
     // Check if user is authenticated
     if (!session) {
       setNotificationMessage("Please log in to save items");
@@ -69,23 +73,41 @@ const VoteControls = ({
       return;
     }
 
-    if (!questionData) return;
+    if (!questionData || favoriteLoading) return;
     
-    const itemId = `question_${questionData.id}`;
-    const isSaved = isItemSaved(itemId);
+    setFavoriteLoading(true);
+    setFavoriteError(null);
     
-    if (isSaved) {
-      // If already saved, remove it
-      unsaveItem(itemId);
-      setNotificationMessage("Removed from saved items");
+    try {
+      const { questionsApi } = await import('@/services/questions.api');
+      
+      // Toggle favorite on backend
+      const result = await questionsApi.favoriteQuestion(questionData.id, selectedList);
+      
+      // Update local state
+      const itemId = `question_${questionData.id}`;
+      
+      if (result.isFavorited) {
+        // Save to local store as well for consistency
+        saveQuestion(questionData, selectedList);
+        setNotificationMessage(`Saved to "${selectedList}" list`);
+      } else {
+        // Remove from local store
+        unsaveItem(itemId);
+        setNotificationMessage("Removed from saved items");
+      }
+      
       setShowSaveNotification(true);
       setTimeout(() => setShowSaveNotification(false), 3000);
-    } else {
-      // If not saved, save to "For later" list by default
-      saveQuestion(questionData, "For later");
-      setNotificationMessage(`Saved to "${selectedList}" list`);
-      setShowSaveNotification(true);
-      setTimeout(() => setShowSaveNotification(false), 3000);
+    } catch (error: any) {
+      console.error('Failed to toggle favorite:', error);
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          'Failed to save item. Please try again.';
+      setFavoriteError(errorMessage);
+      setTimeout(() => setFavoriteError(null), 5000);
+    } finally {
+      setFavoriteLoading(false);
     }
   };
 
@@ -127,42 +149,80 @@ const VoteControls = ({
   // Only check if item is saved when user is authenticated
   const isSaved = session && questionData ? isItemSaved(`question_${questionData.id}`) : false;
   return (
-    <div className="flex flex-col items-center gap-1 sm:gap-2 min-w-[50px] sm:min-w-[60px]">
-      <Button
-        variant="ghost"
-        size="icon"
-        className={`rounded-full hover:bg-orange-50 ${
-          isUpvoted ? "text-orange-600 bg-orange-50" : "text-gray-500"
-        }`}
-        onClick={onUpvote}
-        aria-label="Upvote"
-      >
-        <ArrowUp className="w-6 h-6 sm:w-8 sm:h-8" />
-      </Button>
+    <>
+      {/* Favorite Error Popup */}
+      {favoriteError && (
+        <div className="fixed top-20 right-4 z-50 max-w-md animate-in slide-in-from-top-5">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-800">Favorite Failed</h3>
+                <p className="text-sm text-red-700 mt-1">{favoriteError}</p>
+              </div>
+              <button
+                onClick={() => setFavoriteError(null)}
+                className="flex-shrink-0 text-red-400 hover:text-red-600"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      <div
-        className={`text-xl sm:text-2xl font-bold ${
-          votes > 0
-            ? "text-gray-800"
-            : votes < 0
-            ? "text-red-600"
-            : "text-gray-600"
-        }`}
-      >
-        {votes}
-      </div>
+      <div className="flex flex-col items-center gap-1 sm:gap-2 min-w-[50px] sm:min-w-[60px]">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`rounded-full hover:bg-orange-50 ${
+            isUpvoted ? "text-orange-600 bg-orange-50" : "text-gray-500"
+          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          onClick={onUpvote}
+          aria-label="Upvote"
+          disabled={isLoading}
+        >
+          {isLoading && isUpvoted ? (
+            <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <ArrowUp className="w-6 h-6 sm:w-8 sm:h-8" />
+          )}
+        </Button>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        className={`rounded-full hover:bg-orange-50 ${
-          isDownvoted ? "text-orange-600 bg-orange-50" : "text-gray-500"
-        }`}
-        onClick={onDownvote}
-        aria-label="Downvote"
-      >
-        <ArrowDown className="w-6 h-6 sm:w-8 sm:h-8" />
-      </Button>
+        <div
+          className={`text-xl sm:text-2xl font-bold ${
+            votes > 0
+              ? "text-gray-800"
+              : votes < 0
+              ? "text-red-600"
+              : "text-gray-600"
+          } ${isLoading ? 'opacity-50' : ''}`}
+        >
+          {votes}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`rounded-full hover:bg-orange-50 ${
+            isDownvoted ? "text-orange-600 bg-orange-50" : "text-gray-500"
+          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          onClick={onDownvote}
+          aria-label="Downvote"
+          disabled={isLoading}
+        >
+          {isLoading && isDownvoted ? (
+            <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <ArrowDown className="w-6 h-6 sm:w-8 sm:h-8" />
+          )}
+        </Button>
 
       {isAccepted ? (
         <div
@@ -180,16 +240,21 @@ const VoteControls = ({
               isSaved 
                 ? "text-blue-600 bg-blue-100 hover:bg-blue-200 border border-blue-300" 
                 : "text-gray-500 hover:bg-blue-50 hover:text-blue-600"
-            }`}
+            } ${favoriteLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={handleBookmarkClick}
             aria-label={session ? (isSaved ? "Remove bookmark" : "Add bookmark") : "Login to save items"}
             title={session ? (isSaved ? "Remove bookmark" : "Add bookmark") : "Login to save items"}
+            disabled={favoriteLoading}
           >
-            <Bookmark
-              className={`w-5 h-5 sm:w-6 sm:h-6 transition-all ${
-                isSaved ? "fill-current text-blue-600" : ""
-              }`}
-            />
+            {favoriteLoading ? (
+              <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Bookmark
+                className={`w-5 h-5 sm:w-6 sm:h-6 transition-all ${
+                  isSaved ? "fill-current text-blue-600" : ""
+                }`}
+              />
+            )}
           </Button>
 
           {/* Save Notification Popup */}
@@ -259,7 +324,8 @@ const VoteControls = ({
           </Dialog>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

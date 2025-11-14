@@ -17,20 +17,16 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
 
     switch (node.type) {
       case 'paragraph':
-        // Render paragraph children but filter out stray bracket-only text nodes
-        // that some editors may insert around non-text nodes (e.g. [ image ]).
+        // Render paragraph children
         const paragraphChildren = node.content ? node.content : [];
-        // Build rendered children, skipping bracket-only text nodes that directly
-        // surround other nodes (common artifact when serializing images).
         const renderedParagraphChildren = paragraphChildren
-          .filter((child: any, idx: number) => {
-            // If the child is a text node that is exactly '[' or ']', skip it
-            if (child.type === 'text' && (child.text === '[' || child.text === ']')) {
-              return false;
-            }
-            return true;
-          })
           .map((child: any, i: number) => renderNode(child, i));
+
+        // Don't render empty paragraphs
+        if (renderedParagraphChildren.length === 0 || 
+            (renderedParagraphChildren.length === 1 && !renderedParagraphChildren[0])) {
+          return null;
+        }
 
         return (
           <p key={key} className="mb-4 leading-6">
@@ -39,6 +35,7 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
         );
 
       case 'text':
+        // Don't filter brackets here - let the paragraph filter handle it contextually
         let textElement: ReactNode = node.text || '';
         
         if (node.marks) {

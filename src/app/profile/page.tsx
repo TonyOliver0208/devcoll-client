@@ -74,15 +74,32 @@ export default function Profile() {
   const allSavedItems = getAllSavedItems();
   const savedItemsCount = getSavedItemsCount();
 
-  // TODO: Load saved lists when component mounts and user is authenticated
-  // Temporarily disabled until backend is ready
-  /*
+  // State for backend favorites
+  const [backendFavorites, setBackendFavorites] = useState<any[]>([]);
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
+
+  // Load favorites from backend when authenticated
   useEffect(() => {
-    if (session && status === "authenticated") {
-      loadSavedLists();
-    }
+    const loadFavorites = async () => {
+      if (session && status === "authenticated") {
+        try {
+          setIsLoadingFavorites(true);
+          const { questionsApi } = await import('@/services/questions.api');
+          const response = await questionsApi.getUserFavorites({
+            page: 1,
+            limit: 100, // Get all favorites for now
+          });
+          setBackendFavorites(response.favorites);
+        } catch (error) {
+          console.error('Failed to load favorites:', error);
+        } finally {
+          setIsLoadingFavorites(false);
+        }
+      }
+    };
+
+    loadFavorites();
   }, [session, status]);
-  */
 
   // Mock user stats - replace with real data
   const userStats: UserStats = {
@@ -145,6 +162,8 @@ export default function Profile() {
                 <SavesSection
                   savedItems={allSavedItems}
                   savedItemsCount={savedItemsCount}
+                  backendFavorites={backendFavorites}
+                  isLoadingFavorites={isLoadingFavorites}
                 />
               )}
               {activeTab === "profile" && (
@@ -312,15 +331,28 @@ function ProfileSidebar({
 function SavesSection({
   savedItems,
   savedItemsCount,
+  backendFavorites = [],
+  isLoadingFavorites = false,
 }: {
   savedItems: any[];
   savedItemsCount: number;
+  backendFavorites?: any[];
+  isLoadingFavorites?: boolean;
 }) {
+  // Combine local saved items with backend favorites
+  const totalCount = savedItemsCount + backendFavorites.length;
+  const allItems = [...savedItems, ...backendFavorites];
+
   return (
     <div className="w-full">
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold">Saved Items ({savedItemsCount})</h2>
+          <h2 className="text-xl font-bold">
+            Saved Items ({totalCount})
+            {isLoadingFavorites && (
+              <span className="ml-2 text-sm text-gray-500">Loading...</span>
+            )}
+          </h2>
           <div className="flex gap-2">
             <Button variant="outline" size="sm">
               Sort by date
@@ -332,42 +364,68 @@ function SavesSection({
           </div>
         </div>
 
-        {savedItems.length > 0 ? (
+        {isLoadingFavorites ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+          </div>
+        ) : allItems.length > 0 ? (
           <div className="space-y-4">
-            {savedItems.map((item) => (
-              <div
-                key={item.id}
-                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900 hover:text-blue-600 cursor-pointer">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                      {item.excerpt || "No preview available"}
-                    </p>
-                    <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                      <span>
-                        Saved on {new Date(item.savedAt).toLocaleDateString()}
-                      </span>
-                      {item.type && (
-                        <span className="px-2 py-1 bg-gray-100 rounded">
-                          {item.type}
-                        </span>
-                      )}
+            {allItems.map((item, index) => {
+              // Handle both local saved items and backend favorites
+              const isBackendFavorite = 'questionId' in item;
+              const displayItem = isBackendFavorite ? item.question : item;
+              const itemId = isBackendFavorite ? item.questionId : item.id;
+              const savedDate = isBackendFavorite ? item.createdAt : item.savedAt;
+              const listName = isBackendFavorite ? item.listName : 'Local';
+
+              return (
+                <Link
+                  key={`${isBackendFavorite ? 'backend' : 'local'}-${itemId}-${index}`}
+                  href={`/questions/${itemId}`}
+                >
+                  <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 hover:text-blue-600">
+                          {displayItem?.title || 'Untitled'}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                          {displayItem?.content || displayItem?.excerpt || "No preview available"}
+                        </p>
+                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                          <span>
+                            Saved on {new Date(savedDate).toLocaleDateString()}
+                          </span>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                            {listName}
+                          </span>
+                          {displayItem?.tags && displayItem.tags.length > 0 && (
+                            <div className="flex gap-1">
+                              {displayItem.tags.slice(0, 3).map((tag: any) => (
+                                <span key={tag.name || tag} className="px-2 py-1 bg-gray-100 rounded">
+                                  {tag.name || tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-orange-500 hover:text-red-500"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // TODO: Handle unfavorite
+                        }}
+                      >
+                        <Heart size={16} className="fill-current" />
+                      </Button>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <Heart size={16} />
-                  </Button>
-                </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12">

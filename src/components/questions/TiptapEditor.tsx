@@ -20,6 +20,35 @@ import {
   Upload,
   Loader2,
 } from "lucide-react";
+
+/**
+ * Clean HTML content by removing bracket artifacts around images and links
+ * that Tiptap sometimes adds during serialization
+ */
+const cleanHtmlContent = (html: string): string => {
+  let cleaned = html;
+  
+  // Remove brackets around <img> tags
+  cleaned = cleaned.replace(/\[\s*(<img[^>]*>)\s*\]/gi, '$1');
+  cleaned = cleaned.replace(/\[\s*(<img[^>]*\/>)\s*\]/gi, '$1');
+  
+  // Remove [ before <img> or <a> tags (image placeholders)
+  cleaned = cleaned.replace(/\[\s*(<img)/gi, '$1');
+  cleaned = cleaned.replace(/\[\s*(<a[^>]*class="[^"]*image-placeholder[^"]*")/gi, '$1');
+  
+  // Remove ] after </a> tags that have image-placeholder class
+  cleaned = cleaned.replace(/(<a[^>]*class="[^"]*image-placeholder[^"]*"[^>]*>[^<]*<\/a>)\s*\]/gi, '$1');
+  
+  // Remove ] after <img> tags
+  cleaned = cleaned.replace(/(<\/img>)\s*\]/gi, '$1');
+  cleaned = cleaned.replace(/(<img[^>]*\/>)\s*\]/gi, '$1');
+  
+  // Remove standalone brackets (only single [ or ] surrounded by spaces)
+  cleaned = cleaned.replace(/\s\[\s/g, ' ');
+  cleaned = cleaned.replace(/\s\]\s/g, ' ');
+  
+  return cleaned;
+};
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -215,7 +244,8 @@ const TiptapEditor = ({
     ],
     content: value,
     onUpdate: ({ editor }) => {
-      onChange(editor.getJSON(), editor.getHTML(), pendingImages);
+      const cleanedHtml = cleanHtmlContent(editor.getHTML());
+      onChange(editor.getJSON(), cleanedHtml, pendingImages);
     },
     editorProps: {
       attributes: {
@@ -554,7 +584,8 @@ const TiptapEditor = ({
     ]).run();
     
     // Notify parent component about the updated images
-    onChange(editor.getJSON(), editor.getHTML(), updatedPendingImages);
+    const cleanedHtml = cleanHtmlContent(editor.getHTML());
+    onChange(editor.getJSON(), cleanedHtml, updatedPendingImages);
     
     toast.success(`Image "${linkText}" added (will upload when you save)`);
     

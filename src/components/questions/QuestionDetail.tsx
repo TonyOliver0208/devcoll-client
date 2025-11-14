@@ -18,18 +18,81 @@ interface QuestionDetailProps {
 const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
   const router = useRouter();
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
+  const [voteLoading, setVoteLoading] = useState(false);
+  const [voteError, setVoteError] = useState<string | null>(null);
+  const [currentVotes, setCurrentVotes] = useState({
+    total: question.votes,
+    userVote: question.userVote,
+    upvotes: 0,
+    downvotes: 0,
+  });
 
   // Handle hash navigation on component mount
   useEffect(() => {
     handleHashNavigation();
   }, []);
 
-  // Question interaction handlers
+  // Question interaction handlers with optimistic updates
   const handleQuestionVote = async (type: 'up' | 'down') => {
+    if (voteLoading) return; // Prevent double clicks
+    
+    setVoteLoading(true);
+    setVoteError(null);
+    
+    // Optimistic update
+    const prevVotes = { ...currentVotes };
+    const wasVoted = currentVotes.userVote === type;
+    const wasDifferentVote = currentVotes.userVote && currentVotes.userVote !== type;
+    
+    let newTotal = currentVotes.total;
+    let newUserVote: 'up' | 'down' | null = null;
+    
+    if (wasVoted) {
+      // Toggle off - remove vote
+      newTotal = type === 'up' ? newTotal - 1 : newTotal + 1;
+      newUserVote = null;
+    } else if (wasDifferentVote) {
+      // Switch vote
+      newTotal = type === 'up' ? newTotal + 2 : newTotal - 2;
+      newUserVote = type;
+    } else {
+      // New vote
+      newTotal = type === 'up' ? newTotal + 1 : newTotal - 1;
+      newUserVote = type;
+    }
+    
+    setCurrentVotes(prev => ({
+      ...prev,
+      total: newTotal,
+      userVote: newUserVote,
+    }));
+    
     try {
-      console.log(`Voting ${type} on question ${question.id}`);
-    } catch (error) {
+      const { questionsApi } = await import('@/services/questions.api');
+      const result = await questionsApi.voteQuestion(question.id.toString(), type);
+      
+      // Update with real data from server
+      setCurrentVotes({
+        total: result.totalVotes,
+        userVote: result.userVote as 'up' | 'down' | null,
+        upvotes: result.upvotes,
+        downvotes: result.downvotes,
+      });
+    } catch (error: any) {
       console.error('Failed to vote:', error);
+      // Revert optimistic update
+      setCurrentVotes(prevVotes);
+      
+      // Show error message
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          'Failed to vote. Please try again.';
+      setVoteError(errorMessage);
+      
+      // Auto-hide error after 5 seconds
+      setTimeout(() => setVoteError(null), 5000);
+    } finally {
+      setVoteLoading(false);
     }
   };
 
@@ -144,12 +207,19 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
             <div className="lg:col-span-2 xl:col-span-3">
               {/* Question */}
               <QuestionSection
-                question={question}
+                question={{
+                  ...question,
+                  votes: currentVotes.total,
+                  userVote: currentVotes.userVote,
+                }}
                 onVote={handleQuestionVote}
                 onShare={handleQuestionShare}
                 onEdit={handleQuestionEdit}
                 onFlag={handleQuestionFlag}
                 currentUserId={currentUserId}
+                voteLoading={voteLoading}
+                voteError={voteError}
+                onDismissError={() => setVoteError(null)}
               />
 
               {/* Answers */}
