@@ -2,6 +2,7 @@
 
 import { use } from "react";
 import { notFound } from "next/navigation";
+import { useSession } from "next-auth/react";
 import AppLayout from "@/components/layout/AppLayout";
 import { QuestionDetail } from "@/components/questions";
 import { mockQuestions } from "@/constants/questions";
@@ -16,6 +17,10 @@ interface QuestionDetailPageProps {
 
 export default function QuestionDetailPage({ params }: QuestionDetailPageProps) {
   const { id } = use(params);
+  const { data: session } = useSession();
+  
+  // Get current user ID from session
+  const currentUserId = session?.user?.id;
   
   // Use mock data or API based on configuration
   const shouldUseAPI = !USE_MOCK_DATA;
@@ -36,7 +41,7 @@ export default function QuestionDetailPage({ params }: QuestionDetailPageProps) 
   if (shouldUseAPI && isLoading) {
     return (
       <AppLayout>
-        <div className="flex justify-center items-center py-20">
+        <div className="flex justify-center items-center min-h-[calc(100vh-80px)] w-full">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
             <p className="text-gray-600 text-lg">Loading question...</p>
@@ -50,7 +55,7 @@ export default function QuestionDetailPage({ params }: QuestionDetailPageProps) 
   if (shouldUseAPI && isError) {
     return (
       <AppLayout>
-        <div className="flex justify-center items-center py-20">
+        <div className="flex justify-center items-center min-h-[calc(100vh-80px)] w-full">
           <div className="max-w-md w-full text-center">
             <div className="mb-6">
               <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +81,7 @@ export default function QuestionDetailPage({ params }: QuestionDetailPageProps) 
 
   return (
     <AppLayout>
-      <QuestionDetail question={question} />
+      <QuestionDetail question={question} currentUserId={currentUserId} />
     </AppLayout>
   );
 }

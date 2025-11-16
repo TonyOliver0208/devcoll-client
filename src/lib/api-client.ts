@@ -369,6 +369,19 @@ class ApiClient {
     })
   }
 
+  async patch<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+    // Check if data is FormData - if so, don't stringify it
+    const body = data instanceof FormData 
+      ? data 
+      : data ? JSON.stringify(data) : undefined;
+    
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body,
+      ...options,
+    })
+  }
+
   async delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE', ...options })
   }
@@ -379,10 +392,20 @@ export const apiClient = new ApiClient()
 
 // Data transformation helpers
 // Map backend Post model to frontend Question model
-const mapPostToQuestion = (post: any): Question => {
+export const mapPostToQuestion = (post: any): Question => {
   const fullContent = post.content || '';
   const title = extractTitle(fullContent);
   const contentBody = extractContentBody(fullContent);
+  
+  // Debug: Check if userVote is present
+  console.log('[mapPostToQuestion] Mapping post:', {
+    id: post.id,
+    userVote: post.userVote,
+    totalVotes: post.totalVotes,
+    upvotes: post.upvotes,
+    downvotes: post.downvotes,
+    isFavorited: post.isFavorited,
+  });
   
   // Transform tags: backend returns array of objects with {id, name, description}
   // frontend expects array of strings (tag names)
@@ -402,7 +425,7 @@ const mapPostToQuestion = (post: any): Question => {
     title: title,
     content: fullContent,
     excerpt: extractExcerpt(contentBody),
-    votes: post.likesCount || 0,
+    votes: post.totalVotes !== undefined ? post.totalVotes : (post.likesCount || 0),
     answers: post.commentsCount || 0,
     views: 0, // Backend doesn't track views yet
     tags: tags,
@@ -414,17 +437,17 @@ const mapPostToQuestion = (post: any): Question => {
       avatar: post.author?.picture,
     },
     hasAcceptedAnswer: false,
-    userVote: null,
-    isBookmarked: false,
+    userVote: post.userVote || null,
+    isBookmarked: post.isFavorited || false,
   }
 }
 
 // Extract title from content (first line or first 100 chars)
 const extractTitle = (content: string): string => {
-  if (!content) return 'Untitled'
-  const lines = content.split('\n')
-  const firstLine = lines[0]?.trim() || 'Untitled'
-  return firstLine.length > 100 ? firstLine.substring(0, 100) + '...' : firstLine
+  if (!content) return 'Untitled';
+  const lines = content.split('\n');
+  const firstLine = lines[0]?.trim() || 'Untitled';
+  return firstLine.length > 100 ? firstLine.substring(0, 100) + '...' : firstLine;
 }
 
 // Extract content body (everything after first line)
@@ -655,8 +678,47 @@ export const tagsApi = {
   },
 }
 
+export const answersApi = {
+  // Create an answer to a question
+  createAnswer: (questionId: string, data: { content: string }): Promise<any> => {
+    const url = `/posts/${questionId}/answers`;
+    console.log('[answersApi.createAnswer] Calling API:', { questionId, url, contentLength: data.content?.length });
+    return apiClient.post(url, data)
+  },
+
+  // Get all answers for a question
+  getAnswers: (questionId: string): Promise<any> => {
+    return apiClient.get(`/posts/${questionId}/answers`)
+  },
+
+  // Update an answer
+  updateAnswer: (answerId: string, data: { content: string }): Promise<any> => {
+    return apiClient.patch(`/posts/answers/${answerId}`, data)
+  },
+
+  // Delete an answer
+  deleteAnswer: (answerId: string): Promise<any> => {
+    return apiClient.delete(`/posts/answers/${answerId}`)
+  },
+
+  // Vote on an answer
+  voteAnswer: (answerId: string, voteType: 'up' | 'down'): Promise<any> => {
+    return apiClient.post(`/posts/answers/${answerId}/vote`, { voteType })
+  },
+
+  // Accept an answer (question author only)
+  acceptAnswer: (answerId: string): Promise<any> => {
+    return apiClient.post(`/posts/answers/${answerId}/accept`, {})
+  },
+
+  // Get vote counts for an answer
+  getAnswerVotes: (answerId: string): Promise<any> => {
+    return apiClient.get(`/posts/answers/${answerId}/votes`)
+  },
+}
+
 export const commentsApi = {
-  // Get comments for a post
+  // Get comments for a post (question)
   getComments: (postId: string, params?: { page?: number; limit?: number }): Promise<any> => {
     const queryParams = new URLSearchParams()
     if (params?.page) queryParams.append('page', params.page.toString())
@@ -665,9 +727,28 @@ export const commentsApi = {
     return apiClient.get(`/posts/${postId}/comments${queryString ? `?${queryString}` : ''}`)
   },
 
-  // Create a comment on a post
+  // Get comments for an answer
+  getAnswerComments: (answerId: string, params?: { page?: number; limit?: number }): Promise<any> => {
+    const queryParams = new URLSearchParams()
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    const queryString = queryParams.toString()
+    return apiClient.get(`/posts/answers/${answerId}/comments${queryString ? `?${queryString}` : ''}`)
+  },
+
+  // Create a comment on a post (question)
   createComment: (postId: string, data: { content: string; parentId?: string }): Promise<any> => {
     return apiClient.post(`/posts/${postId}/comments`, data)
+  },
+
+  // Create a comment on an answer
+  createAnswerComment: (answerId: string, data: { content: string; parentId?: string }): Promise<any> => {
+    return apiClient.post(`/posts/answers/${answerId}/comments`, data)
+  },
+
+  // Update a comment
+  updateComment: (commentId: string, data: { content: string }): Promise<any> => {
+    return apiClient.patch(`/posts/comments/${commentId}`, data)
   },
 
   // Delete a comment

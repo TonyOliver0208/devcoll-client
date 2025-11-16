@@ -4,9 +4,10 @@ import Link from "next/link";
 import { ArrowUp, ArrowDown, Bookmark, Share, Edit, Flag, Check, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSavedItems } from "@/store/savedItemsStore";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   Dialog, 
   DialogContent, 
@@ -23,6 +24,7 @@ interface VoteControlsProps {
   isDownvoted?: boolean;
   isBookmarked?: boolean;
   isLoading?: boolean; // Loading state for voting
+  onFavoriteChange?: (isFavorited: boolean) => void; // Callback when favorite changes
   // Add question data for saving
   questionData?: {
     id: string;
@@ -49,10 +51,12 @@ const VoteControls = ({
   isDownvoted = false,
   isBookmarked = false,
   isLoading = false,
+  onFavoriteChange,
   questionData,
 }: VoteControlsProps) => {
   const { data: session } = useSession();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { saveQuestion, unsaveItem, isItemSaved, savedLists } = useSavedItems();
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const [showListDialog, setShowListDialog] = useState(false);
@@ -60,6 +64,20 @@ const VoteControls = ({
   const [notificationMessage, setNotificationMessage] = useState("");
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
+  const [localIsFavorited, setLocalIsFavorited] = useState(isBookmarked);
+  const [showUnsaveConfirm, setShowUnsaveConfirm] = useState(false);
+  const [isFavoriteOperation, setIsFavoriteOperation] = useState(false); // Track if we're in the middle of favoriting
+
+  // Sync local state with prop changes (when question data refetches)
+  // BUT only if we're not in the middle of a favorite operation
+  useEffect(() => {
+    if (isFavoriteOperation) {
+      console.log('[VoteControls] Skipping sync during favorite operation');
+      return;
+    }
+    console.log('[VoteControls] Syncing favorite state from prop:', isBookmarked);
+    setLocalIsFavorited(isBookmarked);
+  }, [isBookmarked, isFavoriteOperation]);
 
   const handleBookmarkClick = async () => {
     // Check if user is authenticated
@@ -73,16 +91,37 @@ const VoteControls = ({
       return;
     }
 
+    // If already favorited, show confirmation dialog
+    if (localIsFavorited) {
+      setShowUnsaveConfirm(true);
+      return;
+    }
+
+    // Otherwise, save directly
+    await performFavoriteToggle();
+  };
+
+  const performFavoriteToggle = async () => {
     if (!questionData || favoriteLoading) return;
     
+    setIsFavoriteOperation(true); // Mark that we're favoriting
     setFavoriteLoading(true);
     setFavoriteError(null);
+    
+    // Optimistic update
+    const previousState = localIsFavorited;
+    setLocalIsFavorited(!localIsFavorited);
     
     try {
       const { questionsApi } = await import('@/services/questions.api');
       
       // Toggle favorite on backend
       const result = await questionsApi.favoriteQuestion(questionData.id, selectedList);
+      
+      console.log('[VoteControls] Favorite result from server:', result);
+      
+      // Update with server response
+      setLocalIsFavorited(result.isFavorited);
       
       // Update local state
       const itemId = `question_${questionData.id}`;
@@ -97,10 +136,16 @@ const VoteControls = ({
         setNotificationMessage("Removed from saved items");
       }
       
+      // Notify parent component of the change
+      onFavoriteChange?.(result.isFavorited);
+      
       setShowSaveNotification(true);
       setTimeout(() => setShowSaveNotification(false), 3000);
     } catch (error: any) {
       console.error('Failed to toggle favorite:', error);
+      // Revert optimistic update
+      setLocalIsFavorited(previousState);
+      
       const errorMessage = error?.response?.data?.message || 
                           error?.message || 
                           'Failed to save item. Please try again.';
@@ -108,6 +153,8 @@ const VoteControls = ({
       setTimeout(() => setFavoriteError(null), 5000);
     } finally {
       setFavoriteLoading(false);
+      // Wait a bit before resuming sync to ensure parent has time to process
+      setTimeout(() => setIsFavoriteOperation(false), 100);
     }
   };
 
@@ -146,8 +193,9 @@ const VoteControls = ({
     setTimeout(() => setShowSaveNotification(false), 3000);
   };
 
-  // Only check if item is saved when user is authenticated
-  const isSaved = session && questionData ? isItemSaved(`question_${questionData.id}`) : false;
+  // Use local favorited state (synced with backend)
+  const isSaved = localIsFavorited;
+  
   return (
     <>
       {/* Favorite Error Popup */}
@@ -282,6 +330,39 @@ const VoteControls = ({
               </div>
             </div>
           )}
+
+          {/* Unsave Confirmation Dialog */}
+          <Dialog open={showUnsaveConfirm} onOpenChange={setShowUnsaveConfirm}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Remove from saved?</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <p className="text-gray-600">
+                  Are you sure you want to remove this question from your saved items?
+                </p>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowUnsaveConfirm(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  className="bg-red-600 hover:bg-red-700"
+                  onClick={async () => {
+                    setShowUnsaveConfirm(false);
+                    await performFavoriteToggle();
+                  }}
+                  disabled={favoriteLoading}
+                >
+                  {favoriteLoading ? "Removing..." : "Remove"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* List Selection Dialog */}
           <Dialog open={showListDialog} onOpenChange={setShowListDialog}>

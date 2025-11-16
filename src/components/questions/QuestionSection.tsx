@@ -19,6 +19,8 @@ interface QuestionSectionProps {
   voteLoading?: boolean;
   voteError?: string | null;
   onDismissError?: () => void;
+  onFavoriteChange?: (isFavorited: boolean) => void;
+  favoriteState?: boolean;
 }
 
 const QuestionSection = ({ 
@@ -31,6 +33,8 @@ const QuestionSection = ({
   voteLoading = false,
   voteError = null,
   onDismissError,
+  onFavoriteChange,
+  favoriteState,
 }: QuestionSectionProps) => {
   const canEdit = currentUserId === question.author.id;
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -83,8 +87,9 @@ const QuestionSection = ({
               onDownvote={handleDownvote}
               isUpvoted={question.userVote === 'up'}
               isDownvoted={question.userVote === 'down'}
-              isBookmarked={question.isBookmarked}
+              isBookmarked={favoriteState !== undefined ? favoriteState : question.isBookmarked}
               isLoading={voteLoading}
+              onFavoriteChange={onFavoriteChange}
               questionData={{
                 id: question.id.toString(),
                 title: question.title,
@@ -127,7 +132,12 @@ const QuestionSection = ({
             
             {/* Comments Section */}
             <div className="ml-12 sm:ml-16 mt-3">
-              <CommentList comments={question.comments || []} />
+              <CommentList 
+                comments={question.comments || []} 
+                parentType="question"
+                parentId={String(question.id)}
+                questionId={String(question.id)}
+              />
             </div>
           </div>
         </div>

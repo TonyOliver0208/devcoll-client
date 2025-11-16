@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { mapPostToQuestion } from '@/lib/api-client';
 
 export interface VoteQuestionResponse {
   success: boolean;
@@ -77,6 +78,16 @@ export const questionsApi = {
     limit?: number;
   }): Promise<UserFavoritesResponse> => {
     const response = await apiClient.get('/posts/favorites', { params });
-    return response.data;
+    
+    // Map each favorite's question through mapPostToQuestion to extract title and format properly
+    const mappedFavorites = response.data.favorites?.map((fav: any) => ({
+      ...fav,
+      question: fav.question ? mapPostToQuestion(fav.question) : null,
+    })) || [];
+    
+    return {
+      ...response.data,
+      favorites: mappedFavorites,
+    };
   },
 };

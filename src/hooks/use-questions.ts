@@ -37,6 +37,9 @@ export const useQuestion = (id: string) => {
     queryKey: questionKeys.detail(id),
     queryFn: () => questionsApi.getQuestion(id),
     enabled: !!id, // Only run if ID exists
+    staleTime: 0, // Always consider data stale to fetch fresh vote state
+    refetchOnMount: 'always' as const, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when user returns to the tab
   })
 }
 

@@ -7,45 +7,81 @@ import {
   validateComment,
   validateMarkdown,
   previewMarkdown,
-  submitComment,
 } from "@/lib/commentUtils";
+import { useCreateQuestionComment, useCreateAnswerComment } from "@/hooks/use-comments";
+import toast from "react-hot-toast";
+import { useSession } from "next-auth/react";
 
 interface CommentListProps {
   comments: Comment[];
   maxVisible?: number;
+  parentType: 'question' | 'answer';
+  parentId: string;
+  questionId: string; // Always need this for cache invalidation
 }
 
-const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
+const CommentList = ({ comments, maxVisible = 5, parentType, parentId, questionId }: CommentListProps) => {
+  const { data: session } = useSession();
   const [showAll, setShowAll] = useState(false);
   const [showAddComment, setShowAddComment] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const createQuestionComment = useCreateQuestionComment();
+  const createAnswerComment = useCreateAnswerComment();
+
   const visibleComments = showAll ? comments : comments.slice(0, maxVisible);
   const hiddenCount = comments.length - maxVisible;
 
   const handleAddComment = async () => {
+    console.log('[handleAddComment] Starting', { 
+      hasSession: !!session, 
+      hasUser: !!session?.user,
+      parentType,
+      parentId,
+      commentLength: newComment.length 
+    });
+    
+    if (!session?.user) {
+      console.warn('[handleAddComment] No session - user not logged in');
+      toast.error("Please sign in to add a comment.");
+      return;
+    }
+
     const validation = validateComment(newComment);
     if (!validation.isValid) {
-      console.error("Validation errors:", validation.errors);
+      console.warn('[handleAddComment] Validation failed:', validation.errors);
+      toast.error(validation.errors.join(", "));
       return;
     }
 
     setIsSubmitting(true);
+    const loadingToast = toast.loading("Adding comment...");
+    
     try {
-      // For now, just simulate API call
-      const result = await submitComment(1, newComment, "question"); // postId will come from props later
-
-      if (result.success) {
-        console.log("Comment submitted successfully:", result.processedContent);
-        setNewComment("");
-        setShowAddComment(false);
-        // In real app, you'd refresh the comments list or add the new comment to state
+      console.log('[handleAddComment] Calling API');
+      
+      if (parentType === 'question') {
+        await createQuestionComment.mutateAsync({
+          postId: parentId,
+          content: newComment,
+        });
       } else {
-        console.error("Submit errors:", result.errors);
+        await createAnswerComment.mutateAsync({
+          answerId: parentId,
+          questionId: questionId,
+          content: newComment,
+        });
       }
+
+      console.log('[handleAddComment] Comment added successfully');
+      toast.success("Comment added successfully!", { id: loadingToast });
+      setNewComment("");
+      setShowAddComment(false);
     } catch (error) {
-      console.error("Unexpected error:", error);
+      console.error("[handleAddComment] Failed to add comment:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to add comment";
+      toast.error(errorMessage, { id: loadingToast });
     } finally {
       setIsSubmitting(false);
     }
@@ -60,12 +96,24 @@ const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
     return (
       <div className="pt-2">
         {!showAddComment ? (
-          <button
-            onClick={() => setShowAddComment(true)}
-            className="text-blue-600 hover:text-blue-800 text-sm"
-          >
-            Add a comment
-          </button>
+          !session?.user ? (
+            <div className="text-sm text-gray-600">
+              <a 
+                href="/login" 
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Sign in
+              </a>{" "}
+              to add a comment
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAddComment(true)}
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              Add a comment
+            </button>
+          )
         ) : (
           <AddCommentForm
             newComment={newComment}
@@ -109,12 +157,24 @@ const CommentList = ({ comments, maxVisible = 5 }: CommentListProps) => {
         {/* Add Comment Button */}
         <div className="pt-2 border-t border-gray-100">
           {!showAddComment ? (
-            <button
-              onClick={() => setShowAddComment(true)}
-              className="text-blue-600 hover:text-blue-800 text-sm"
-            >
-              Add a comment
-            </button>
+            !session?.user ? (
+              <div className="text-sm text-gray-600">
+                <a 
+                  href="/login" 
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  Sign in
+                </a>{" "}
+                to add a comment
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddComment(true)}
+                className="text-blue-600 hover:text-blue-800 text-sm"
+              >
+                Add a comment
+              </button>
+            )
           ) : (
             <AddCommentForm
               newComment={newComment}
@@ -311,7 +371,7 @@ const AddCommentForm = ({
       {allErrors.length > 0 && (
         <div className="text-xs text-red-600">
           {allErrors.map((error, index) => (
-            <div key={index}>• {error}</div>
+            <div key={`error-${index}`}>• {error}</div>
           ))}
         </div>
       )}
@@ -319,7 +379,7 @@ const AddCommentForm = ({
       {warnings.length > 0 && (
         <div className="text-xs text-orange-600">
           {warnings.map((warning, index) => (
-            <div key={index}>⚠ {warning}</div>
+            <div key={`warning-${index}`}>⚠ {warning}</div>
           ))}
         </div>
       )}

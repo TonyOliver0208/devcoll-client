@@ -3,12 +3,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Question } from "@/types/questions";
 import RightSidebar from "@/components/home/RightSidebar";
 import QuestionSection from "./QuestionSection";
 import AnswerSection from "./AnswerSection";
 import YourAnswer from "./YourAnswer";
 import { handleHashNavigation } from "@/lib/scrollUtils";
+import { questionKeys } from "@/hooks/use-questions";
+import { useCreateAnswer, useVoteAnswer, useAcceptAnswer, useAnswers } from "@/hooks/use-answers";
+import { useQuestionComments } from "@/hooks/use-comments";
+import toast from "react-hot-toast";
 
 interface QuestionDetailProps {
   question: Question;
@@ -17,15 +22,61 @@ interface QuestionDetailProps {
 
 const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const createAnswer = useCreateAnswer();
+  const voteAnswer = useVoteAnswer();
+  const acceptAnswer = useAcceptAnswer();
+  
+  // Fetch answers separately using the API
+  const { data: answersData, isLoading: answersLoading } = useAnswers(question.id.toString());
+  
+  // Fetch question comments
+  const { data: questionCommentsData } = useQuestionComments(question.id.toString());
+  
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   const [voteLoading, setVoteLoading] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
+  const [isVoteOperation, setIsVoteOperation] = useState(false); // Track if we're in the middle of voting
+  const [isFavoriteOperation, setIsFavoriteOperation] = useState(false); // Track if we're in the middle of favoriting
   const [currentVotes, setCurrentVotes] = useState({
     total: question.votes,
     userVote: question.userVote,
     upvotes: 0,
     downvotes: 0,
   });
+  const [currentFavoriteState, setCurrentFavoriteState] = useState(question.isBookmarked || false);
+
+  // Sync votes with question prop changes (after refetch)
+  // BUT only if we're not in the middle of a vote operation
+  useEffect(() => {
+    if (isVoteOperation) {
+      console.log('[QuestionDetail] Skipping vote sync during operation');
+      return;
+    }
+    
+    console.log('[QuestionDetail] Syncing votes from question prop:', {
+      votes: question.votes,
+      userVote: question.userVote,
+    });
+    setCurrentVotes({
+      total: question.votes,
+      userVote: question.userVote,
+      upvotes: 0,
+      downvotes: 0,
+    });
+  }, [question.votes, question.userVote, isVoteOperation]);
+
+  // Sync favorite state with question prop changes (after refetch)
+  // BUT only if we're not in the middle of a favorite operation
+  useEffect(() => {
+    if (isFavoriteOperation) {
+      console.log('[QuestionDetail] Skipping favorite sync during operation');
+      return;
+    }
+    
+    console.log('[QuestionDetail] Syncing favorite from question prop:', question.isBookmarked);
+    setCurrentFavoriteState(question.isBookmarked || false);
+  }, [question.isBookmarked, isFavoriteOperation]);
 
   // Handle hash navigation on component mount
   useEffect(() => {
@@ -36,6 +87,7 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
   const handleQuestionVote = async (type: 'up' | 'down') => {
     if (voteLoading) return; // Prevent double clicks
     
+    setIsVoteOperation(true); // Mark that we're voting
     setVoteLoading(true);
     setVoteError(null);
     
@@ -71,12 +123,25 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
       const { questionsApi } = await import('@/services/questions.api');
       const result = await questionsApi.voteQuestion(question.id.toString(), type);
       
+      console.log('[QuestionDetail] Vote result from server:', result);
+      
       // Update with real data from server
       setCurrentVotes({
         total: result.totalVotes,
         userVote: result.userVote as 'up' | 'down' | null,
         upvotes: result.upvotes,
         downvotes: result.downvotes,
+      });
+      
+      // Invalidate queries and wait for refetch to complete
+      await queryClient.invalidateQueries({
+        queryKey: questionKeys.detail(question.id.toString()),
+        refetchType: 'active',
+      });
+      
+      // Also invalidate question lists (background)
+      queryClient.invalidateQueries({
+        queryKey: questionKeys.lists(),
       });
     } catch (error: any) {
       console.error('Failed to vote:', error);
@@ -93,6 +158,8 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
       setTimeout(() => setVoteError(null), 5000);
     } finally {
       setVoteLoading(false);
+      // Wait a bit to ensure refetch has propagated, then resume sync
+      setTimeout(() => setIsVoteOperation(false), 100);
     }
   };
 
@@ -113,20 +180,61 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
     console.log('Flag question');
   };
 
+  const handleQuestionFavorite = async (isFavorited: boolean) => {
+    // This will be called from VoteControls after the favorite operation completes
+    console.log('[QuestionDetail] Favorite changed to:', isFavorited);
+    setIsFavoriteOperation(true);
+    setCurrentFavoriteState(isFavorited);
+    
+    // Invalidate queries and wait for refetch
+    await queryClient.invalidateQueries({
+      queryKey: questionKeys.detail(question.id.toString()),
+      refetchType: 'active',
+    });
+    
+    // Wait a bit then resume sync
+    setTimeout(() => setIsFavoriteOperation(false), 100);
+  };
+
   // Answer interaction handlers
   const handleAnswerVote = async (answerId: number, type: 'up' | 'down') => {
+    if (!currentUserId) {
+      toast.error("Please sign in to vote.");
+      return;
+    }
+
     try {
-      console.log(`Voting ${type} on answer ${answerId}`);
+      await voteAnswer.mutateAsync({
+        answerId: String(answerId),
+        voteType: type,
+        questionId: String(question.id),
+      });
     } catch (error) {
       console.error('Failed to vote on answer:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to vote on answer");
     }
   };
 
   const handleAnswerAccept = async (answerId: number) => {
+    if (!currentUserId) {
+      toast.error("Please sign in to accept an answer.");
+      return;
+    }
+
+    if (!canAcceptAnswers) {
+      toast.error("Only the question author can accept answers.");
+      return;
+    }
+
     try {
-      console.log(`Accepting answer ${answerId}`);
+      await acceptAnswer.mutateAsync({
+        answerId: String(answerId),
+        questionId: String(question.id),
+      });
+      toast.success("Answer accepted!");
     } catch (error) {
       console.error('Failed to accept answer:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to accept answer");
     }
   };
 
@@ -148,12 +256,40 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
   };
 
   // Submit new answer
-  const handleSubmitAnswer = async (content: string) => {
+  const handleSubmitAnswer = async (content: any) => {
+    console.log('[handleSubmitAnswer] Starting submission', { currentUserId, hasContent: !!content });
+    
+    if (!currentUserId) {
+      console.warn('[handleSubmitAnswer] No user ID - user not logged in');
+      toast.error("Please sign in to post an answer.");
+      router.push('/login');
+      return;
+    }
+
     setIsSubmittingAnswer(true);
+    const loadingToast = toast.loading("Posting your answer...");
+    
     try {
-      console.log('Submitting answer:', content);
+      // Convert Tiptap JSON to HTML string for now
+      // You can adjust this based on your backend's content format expectations
+      const contentString = typeof content === 'string' ? content : JSON.stringify(content);
+      
+      console.log('[handleSubmitAnswer] Calling API with:', {
+        questionId: String(question.id),
+        contentLength: contentString.length,
+      });
+      
+      const result = await createAnswer.mutateAsync({
+        questionId: String(question.id),
+        content: contentString,
+      });
+
+      console.log('[handleSubmitAnswer] Answer created successfully:', result);
+      toast.success("Your answer has been successfully posted!", { id: loadingToast });
     } catch (error) {
-      console.error('Failed to submit answer:', error);
+      console.error('[handleSubmitAnswer] Failed to submit answer:', error);
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while posting your answer.";
+      toast.error(errorMessage, { id: loadingToast });
       throw error;
     } finally {
       setIsSubmittingAnswer(false);
@@ -211,11 +347,25 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
                   ...question,
                   votes: currentVotes.total,
                   userVote: currentVotes.userVote,
+                  comments: questionCommentsData?.comments?.map((comment: any) => ({
+                    id: Number(comment.id) || 0,
+                    content: comment.content,
+                    author: {
+                      id: comment.userId,
+                      name: comment.authorName || 'Unknown User',
+                      avatar: comment.authorAvatar || '',
+                      reputation: 0,
+                    },
+                    timeAgo: new Date(comment.createdAt).toLocaleString(),
+                    votes: comment.votes || 0,
+                  })) || [],
                 }}
                 onVote={handleQuestionVote}
                 onShare={handleQuestionShare}
                 onEdit={handleQuestionEdit}
                 onFlag={handleQuestionFlag}
+                onFavoriteChange={handleQuestionFavorite}
+                favoriteState={currentFavoriteState}
                 currentUserId={currentUserId}
                 voteLoading={voteLoading}
                 voteError={voteError}
@@ -223,10 +373,42 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
               />
 
               {/* Answers */}
-              {question.answers_data && question.answers_data.length > 0 && (
+              {answersLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                  <p className="text-gray-600 mt-2">Loading answers...</p>
+                </div>
+              ) : answersData?.answers && answersData.answers.length > 0 ? (
                 <AnswerSection
-                  answers={question.answers_data}
-                  totalAnswers={question.answers}
+                  answers={answersData.answers.map((answer: any) => ({
+                    id: answer.id,
+                    votes: answer.totalVotes || 0,
+                    content: answer.content,
+                    contentJson: typeof answer.content === 'string' ? JSON.parse(answer.content) : answer.content,
+                    author: answer.author || {
+                      id: answer.authorId,
+                      name: answer.authorName || 'Unknown User',
+                      avatar: answer.authorAvatar || '',
+                      reputation: 0,
+                    },
+                    timeAgo: new Date(answer.createdAt).toLocaleString(),
+                    isAccepted: answer.isAccepted || false,
+                    comments: answer.comments?.map((comment: any) => ({
+                      id: Number(comment.id) || 0,
+                      content: comment.content,
+                      author: {
+                        id: comment.userId,
+                        name: comment.authorName || 'Unknown User',
+                        avatar: comment.authorAvatar || '',
+                        reputation: 0,
+                      },
+                      timeAgo: new Date(comment.createdAt).toLocaleString(),
+                      votes: comment.votes || 0,
+                    })) || [],
+                    userVote: answer.userVote,
+                  }))}
+                  totalAnswers={answersData.answers.length}
+                  questionId={question.id}
                   onVote={handleAnswerVote}
                   onAccept={handleAnswerAccept}
                   onShare={handleAnswerShare}
@@ -235,13 +417,14 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
                   currentUserId={currentUserId}
                   canAcceptAnswers={canAcceptAnswers}
                 />
-              )}
+              ) : null}
 
               {/* Your Answer */}
               <YourAnswer
                 questionId={question.id.toString()}
                 onSubmit={handleSubmitAnswer}
                 isSubmitting={isSubmittingAnswer}
+                currentUserId={currentUserId}
               />
             </div>
 

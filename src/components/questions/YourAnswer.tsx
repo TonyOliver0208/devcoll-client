@@ -7,12 +7,14 @@ import TiptapEditor from "./TiptapEditor";
 import { validateAnswerQuality, ANSWER_QUALITY_RULES } from "@/lib/answerQualityRules";
 import TermsOfServiceDialog from "@/components/legal/TermsOfServiceDialog";
 import PrivacyPolicyDialog from "@/components/legal/PrivacyPolicyDialog";
+import { useSession } from "next-auth/react";
 
 interface YourAnswerProps {
   questionId: string;
   onSubmit?: (content: any) => void; // Changed to any to support JSON
   isSubmitting?: boolean;
   className?: string;
+  currentUserId?: string;
 }
 
 const YourAnswer = ({
@@ -20,7 +22,10 @@ const YourAnswer = ({
   onSubmit,
   isSubmitting = false,
   className = "",
+  currentUserId,
 }: YourAnswerProps) => {
+  const { data: session } = useSession();
+  const isLoggedIn = !!session?.user || !!currentUserId;
   const [content, setContent] = useState<any>(null);
   const [contentHtml, setContentHtml] = useState("");
   const [draftSaved, setDraftSaved] = useState(false);
@@ -111,12 +116,30 @@ const YourAnswer = ({
       <CardContent className="p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-normal mb-4">Your Answer</h3>
 
-        <TiptapEditor
-          value={contentHtml}
-          onChange={handleEditorChange}
-          placeholder="Enter your answer here. Be specific and explain your reasoning. Include code examples if relevant."
-          minHeight="min-h-48"
-        />
+        {!isLoggedIn && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Want to post an answer?</strong> Please{" "}
+              <a href="/login" className="font-medium underline hover:text-blue-900">
+                sign in
+              </a>{" "}
+              or{" "}
+              <a href="/login" className="font-medium underline hover:text-blue-900">
+                create an account
+              </a>{" "}
+              to contribute your answer.
+            </p>
+          </div>
+        )}
+
+        <div className={!isLoggedIn ? "pointer-events-none opacity-50" : ""}>
+          <TiptapEditor
+            value={contentHtml}
+            onChange={handleEditorChange}
+            placeholder="Enter your answer here. Be specific and explain your reasoning. Include code examples if relevant."
+            minHeight="min-h-48"
+          />
+        </div>
 
         {/* Quality Feedback */}
         {qualityCheck.errors.length > 0 && (
@@ -179,20 +202,21 @@ const YourAnswer = ({
           </div>
         )}
 
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleSubmit}
-              disabled={!isValid || isSubmitting}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isSubmitting ? "Posting..." : "Post Your Answer"}
-            </Button>
-            <Button
-              variant="link"
-              className="text-red-600 hover:text-red-800"
-              onClick={handleDiscard}
-            >
+        {isLoggedIn && (
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSubmit}
+                disabled={!isValid || isSubmitting}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isSubmitting ? "Posting..." : "Post Your Answer"}
+              </Button>
+              <Button
+                variant="link"
+                className="text-red-600 hover:text-red-800"
+                onClick={handleDiscard}
+              >
               Discard
             </Button>
           </div>
@@ -200,6 +224,7 @@ const YourAnswer = ({
             <div className="text-green-600 text-sm">Draft saved</div>
           )}
         </div>
+        )}
 
         <div className="mt-4 text-xs text-gray-500">
           By posting your answer, you agree to our{" "}

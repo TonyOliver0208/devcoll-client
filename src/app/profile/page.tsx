@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -22,6 +22,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSavedItemsStore } from "@/store";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface UserStats {
   questionsAsked: number;
@@ -77,29 +83,59 @@ export default function Profile() {
   // State for backend favorites
   const [backendFavorites, setBackendFavorites] = useState<any[]>([]);
   const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
 
-  // Load favorites from backend when authenticated
-  useEffect(() => {
-    const loadFavorites = async () => {
-      if (session && status === "authenticated") {
-        try {
-          setIsLoadingFavorites(true);
-          const { questionsApi } = await import('@/services/questions.api');
-          const response = await questionsApi.getUserFavorites({
-            page: 1,
-            limit: 100, // Get all favorites for now
-          });
-          setBackendFavorites(response.favorites);
-        } catch (error) {
-          console.error('Failed to load favorites:', error);
-        } finally {
-          setIsLoadingFavorites(false);
-        }
+  // Load favorites function
+  const loadFavorites = useCallback(async (force = false) => {
+    // Only load if:
+    // 1. User is authenticated
+    // 2. We're on the saves tab
+    // 3. Favorites haven't been loaded yet OR force refresh
+    // 4. Not currently loading
+    if (
+      status === "authenticated" && 
+      activeTab === "saves" && 
+      (!favoritesLoaded || force) && 
+      !isLoadingFavorites
+    ) {
+      try {
+        setIsLoadingFavorites(true);
+        const { questionsApi } = await import('@/services/questions.api');
+        const response = await questionsApi.getUserFavorites({
+          page: 1,
+          limit: 100, // Get all favorites for now
+        });
+        setBackendFavorites(response.favorites || []);
+        setFavoritesLoaded(true);
+      } catch (error) {
+        console.error('Failed to load favorites:', error);
+        setBackendFavorites([]);
+        // Mark as loaded even on error to prevent infinite retries
+        setFavoritesLoaded(true);
+      } finally {
+        setIsLoadingFavorites(false);
       }
-    };
+    }
+  }, [status, activeTab, favoritesLoaded, isLoadingFavorites]);
 
+  // Load favorites from backend when authenticated and on saves tab
+  useEffect(() => {
     loadFavorites();
-  }, [session, status]);
+  }, [loadFavorites]);
+
+  // Auto-refresh when switching to saves tab
+  useEffect(() => {
+    if (activeTab === 'saves' && status === 'authenticated') {
+      // Force refresh when navigating to saves tab
+      setFavoritesLoaded(false);
+    }
+  }, [activeTab, status]);
+
+  // Refresh handler for manual refresh
+  const handleRefreshFavorites = useCallback(() => {
+    setFavoritesLoaded(false); // Reset to allow reload
+    loadFavorites(true); // Force reload
+  }, [loadFavorites]);
 
   // Mock user stats - replace with real data
   const userStats: UserStats = {
@@ -164,6 +200,7 @@ export default function Profile() {
                   savedItemsCount={savedItemsCount}
                   backendFavorites={backendFavorites}
                   isLoadingFavorites={isLoadingFavorites}
+                  onRefresh={handleRefreshFavorites}
                 />
               )}
               {activeTab === "profile" && (
@@ -333,15 +370,49 @@ function SavesSection({
   savedItemsCount,
   backendFavorites = [],
   isLoadingFavorites = false,
+  onRefresh,
 }: {
   savedItems: any[];
   savedItemsCount: number;
   backendFavorites?: any[];
   isLoadingFavorites?: boolean;
+  onRefresh?: () => void;
 }) {
-  // Combine local saved items with backend favorites
-  const totalCount = savedItemsCount + backendFavorites.length;
-  const allItems = [...savedItems, ...backendFavorites];
+  const [showUnsaveConfirm, setShowUnsaveConfirm] = useState(false);
+  const [selectedItemToRemove, setSelectedItemToRemove] = useState<any>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  // Only use backend favorites (remove local storage items)
+  const totalCount = backendFavorites?.length || 0;
+  const allItems = backendFavorites || [];
+
+  const handleRemoveClick = (item: any) => {
+    setSelectedItemToRemove(item);
+    setShowUnsaveConfirm(true);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!selectedItemToRemove) return;
+
+    setIsRemoving(true);
+    try {
+      const { questionsApi } = await import('@/services/questions.api');
+      await questionsApi.favoriteQuestion(selectedItemToRemove.questionId, selectedItemToRemove.listName);
+      
+      // Close dialog and refresh list
+      setShowUnsaveConfirm(false);
+      setSelectedItemToRemove(null);
+      
+      // Refresh the favorites list
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error) {
+      console.error('Failed to remove favorite:', error);
+    } finally {
+      setIsRemoving(false);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -354,6 +425,16 @@ function SavesSection({
             )}
           </h2>
           <div className="flex gap-2">
+            {onRefresh && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={onRefresh}
+                disabled={isLoadingFavorites}
+              >
+                Refresh
+              </Button>
+            )}
             <Button variant="outline" size="sm">
               Sort by date
             </Button>
@@ -369,64 +450,98 @@ function SavesSection({
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
           </div>
         ) : allItems.length > 0 ? (
-          <div className="space-y-4">
-            {allItems.map((item, index) => {
-              // Handle both local saved items and backend favorites
-              const isBackendFavorite = 'questionId' in item;
-              const displayItem = isBackendFavorite ? item.question : item;
-              const itemId = isBackendFavorite ? item.questionId : item.id;
-              const savedDate = isBackendFavorite ? item.createdAt : item.savedAt;
-              const listName = isBackendFavorite ? item.listName : 'Local';
+          <>
+            <div className="space-y-4">
+              {allItems.map((item, index) => {
+                const displayItem = item.question;
+                const itemId = item.questionId;
+                const savedDate = item.createdAt;
+                const listName = item.listName || 'For later';
 
-              return (
-                <Link
-                  key={`${isBackendFavorite ? 'backend' : 'local'}-${itemId}-${index}`}
-                  href={`/questions/${itemId}`}
-                >
-                  <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 hover:text-blue-600">
-                          {displayItem?.title || 'Untitled'}
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                          {displayItem?.content || displayItem?.excerpt || "No preview available"}
-                        </p>
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                          <span>
-                            Saved on {new Date(savedDate).toLocaleDateString()}
-                          </span>
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                            {listName}
-                          </span>
-                          {displayItem?.tags && displayItem.tags.length > 0 && (
-                            <div className="flex gap-1">
-                              {displayItem.tags.slice(0, 3).map((tag: any) => (
-                                <span key={tag.name || tag} className="px-2 py-1 bg-gray-100 rounded">
-                                  {tag.name || tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                return (
+                  <div 
+                    key={`${itemId}-${index}`}
+                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors mb-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <Link href={`/questions/${itemId}`} className="flex-1 min-w-0">
+                        <div>
+                          <h3 className="font-medium text-gray-900 hover:text-blue-600 mb-1">
+                            {displayItem?.title || 'Untitled'}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                            {displayItem?.content || displayItem?.excerpt || "No preview available"}
+                          </p>
+                          <div className="flex items-center gap-4 mt-3 text-xs text-gray-500 flex-wrap">
+                            <span>
+                              Saved on {new Date(savedDate).toLocaleDateString()}
+                            </span>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                              {listName}
+                            </span>
+                            {displayItem?.tags && displayItem.tags.length > 0 && (
+                              <div className="flex gap-1 flex-wrap">
+                                {displayItem.tags.slice(0, 3).map((tag: any) => (
+                                  <span key={tag.name || tag} className="px-2 py-1 bg-gray-100 rounded">
+                                    {tag.name || tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </Link>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-orange-500 hover:text-red-500"
+                        className="text-blue-600 hover:text-red-500 flex-shrink-0"
                         onClick={(e) => {
                           e.preventDefault();
-                          // TODO: Handle unfavorite
+                          handleRemoveClick(item);
                         }}
+                        title="Remove from saved"
                       >
-                        <Heart size={16} className="fill-current" />
+                        <Bookmark size={18} className="fill-current" />
                       </Button>
                     </div>
                   </div>
-                </Link>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            {/* Unsave Confirmation Dialog */}
+            <Dialog open={showUnsaveConfirm} onOpenChange={setShowUnsaveConfirm}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Remove from saved?</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                  <p className="text-gray-600">
+                    Are you sure you want to remove "{selectedItemToRemove?.question?.title}" from your saved items?
+                  </p>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowUnsaveConfirm(false);
+                      setSelectedItemToRemove(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={handleConfirmRemove}
+                    disabled={isRemoving}
+                  >
+                    {isRemoving ? "Removing..." : "Remove"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </>
         ) : (
           <div className="text-center py-12">
             <Bookmark size={48} className="text-gray-300 mx-auto mb-4" />

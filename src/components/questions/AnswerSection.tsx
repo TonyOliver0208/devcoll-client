@@ -14,6 +14,7 @@ import type { Answer } from "@/types/questions";
 interface AnswerSectionProps {
   answers: Answer[];
   totalAnswers: number;
+  questionId: string | number; // Add questionId for comments
   onVote?: (answerId: number, type: 'up' | 'down') => void;
   onAccept?: (answerId: number) => void;
   onShare?: (answerId: number) => void;
@@ -28,6 +29,7 @@ type SortOption = 'score' | 'trending' | 'newest' | 'oldest';
 const AnswerSection = ({ 
   answers,
   totalAnswers,
+  questionId,
   onVote,
   onAccept,
   onShare,
@@ -106,6 +108,7 @@ const AnswerSection = ({
           <AnswerCard
             key={answer.id}
             answer={answer}
+            questionId={questionId}
             onVote={(type: 'up' | 'down') => handleVote(answer.id, type)}
             onAccept={() => onAccept?.(answer.id)}
             onShare={() => onShare?.(answer.id)}
@@ -123,6 +126,7 @@ const AnswerSection = ({
 
 interface AnswerCardProps {
   answer: Answer;
+  questionId: string | number;
   onVote: (type: 'up' | 'down') => void;
   onAccept: () => void;
   onShare: () => void;
@@ -135,6 +139,7 @@ interface AnswerCardProps {
 
 const AnswerCard = ({
   answer,
+  questionId,
   onVote,
   onAccept,
   onShare,
@@ -236,17 +241,12 @@ const AnswerCard = ({
               
               {/* Comments Section */}
               <div className="ml-12 sm:ml-16 mt-3">
-                {answer.comments && answer.comments.length > 0 ? (
-                  <CommentList comments={answer.comments} />
-                ) : (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-blue-600 hover:text-blue-800 p-0 h-auto"
-                  >
-                    Add a comment
-                  </Button>
-                )}
+                <CommentList 
+                  comments={answer.comments || []} 
+                  parentType="answer"
+                  parentId={String(answer.id)}
+                  questionId={String(questionId)}
+                />
               </div>
             </div>
           </div>
