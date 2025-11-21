@@ -22,6 +22,7 @@ export const useAnswers = (questionId: string) => {
     staleTime: 0, // Always fetch fresh data
     refetchOnMount: 'always' as const,
     refetchOnWindowFocus: true,
+    retry: false, // Don't retry on error - just show empty state
   })
 }
 

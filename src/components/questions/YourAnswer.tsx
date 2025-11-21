@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import TiptapEditor from "./TiptapEditor";
+import TiptapEditor, { PendingImage } from "./TiptapEditor";
 import { validateAnswerQuality, ANSWER_QUALITY_RULES } from "@/lib/answerQualityRules";
 import TermsOfServiceDialog from "@/components/legal/TermsOfServiceDialog";
 import PrivacyPolicyDialog from "@/components/legal/PrivacyPolicyDialog";
 import { useSession } from "next-auth/react";
+import { processContentWithImages } from "@/lib/imageUploadUtils";
+import toast from "react-hot-toast";
+import { ImageIcon } from "lucide-react";
 
 interface YourAnswerProps {
   questionId: string;
@@ -28,6 +31,7 @@ const YourAnswer = ({
   const isLoggedIn = !!session?.user || !!currentUserId;
   const [content, setContent] = useState<any>(null);
   const [contentHtml, setContentHtml] = useState("");
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [draftSaved, setDraftSaved] = useState(false);
   const [qualityCheck, setQualityCheck] = useState<{
     errors: string[];
@@ -68,9 +72,10 @@ const YourAnswer = ({
     return () => clearTimeout(timer);
   }, [content, contentHtml, questionId]);
 
-  const handleEditorChange = (json: any, html?: string) => {
+  const handleEditorChange = (json: any, html?: string, images?: PendingImage[]) => {
     setContent(json);
     if (html) setContentHtml(html);
+    if (images) setPendingImages(images);
     
     // Run quality check on content change
     if (html && html.trim().length > 0) {
@@ -90,9 +95,43 @@ const YourAnswer = ({
     }
 
     try {
-      await onSubmit?.(content);
+      let finalHtml = contentHtml;
+      let finalJson = content;
+
+      // Process images if there are any pending
+      if (pendingImages.length > 0) {
+        console.log(`[YourAnswer] Uploading ${pendingImages.length} image(s)...`);
+        toast.loading(`Uploading ${pendingImages.length} image(s)...`, { id: 'answer-image-upload' });
+        
+        try {
+          // Upload images and replace placeholders
+          const { html: processedHtml, json: processedJson } = await processContentWithImages(
+            contentHtml,
+            content,
+            pendingImages
+          );
+          
+          finalHtml = processedHtml;
+          finalJson = processedJson;
+          
+          toast.success(`${pendingImages.length} image(s) uploaded successfully!`, { id: 'answer-image-upload' });
+          
+          // Clean up blob URLs
+          pendingImages.forEach(img => URL.revokeObjectURL(img.previewUrl));
+        } catch (uploadError) {
+          console.error('[YourAnswer] Failed to upload images:', uploadError);
+          toast.error('Failed to upload images. Please try again.', { id: 'answer-image-upload' });
+          throw uploadError;
+        }
+      }
+
+      // Submit with processed content
+      await onSubmit?.(finalHtml);
+      
+      // Clear form state
       setContent(null);
       setContentHtml("");
+      setPendingImages([]);
       setQualityCheck({ errors: [], warnings: [], score: 0 });
       localStorage.removeItem(`draft_${questionId}`);
       setDraftSaved(false);
@@ -102,8 +141,12 @@ const YourAnswer = ({
   };
 
   const handleDiscard = () => {
+    // Clean up blob URLs before discarding
+    pendingImages.forEach(img => URL.revokeObjectURL(img.previewUrl));
+    
     setContent(null);
     setContentHtml("");
+    setPendingImages([]);
     setQualityCheck({ errors: [], warnings: [], score: 0 });
     localStorage.removeItem(`draft_${questionId}`);
     setDraftSaved(false);
@@ -140,6 +183,21 @@ const YourAnswer = ({
             minHeight="min-h-48"
           />
         </div>
+
+        {/* Pending Images Indicator */}
+        {pendingImages.length > 0 && (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+            <div className="flex items-center gap-2 text-blue-800">
+              <ImageIcon className="w-4 h-4" />
+              <span className="font-medium">
+                📷 {pendingImages.length} image{pendingImages.length > 1 ? 's' : ''} ready to upload
+              </span>
+            </div>
+            <p className="text-xs text-blue-600 mt-1">
+              Images will be uploaded when you post your answer
+            </p>
+          </div>
+        )}
 
         {/* Quality Feedback */}
         {qualityCheck.errors.length > 0 && (

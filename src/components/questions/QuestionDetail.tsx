@@ -380,33 +380,51 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
                 </div>
               ) : answersData?.answers && answersData.answers.length > 0 ? (
                 <AnswerSection
-                  answers={answersData.answers.map((answer: any) => ({
-                    id: answer.id,
-                    votes: answer.totalVotes || 0,
-                    content: answer.content,
-                    contentJson: typeof answer.content === 'string' ? JSON.parse(answer.content) : answer.content,
-                    author: answer.author || {
-                      id: answer.authorId,
-                      name: answer.authorName || 'Unknown User',
-                      avatar: answer.authorAvatar || '',
-                      reputation: 0,
-                    },
-                    timeAgo: new Date(answer.createdAt).toLocaleString(),
-                    isAccepted: answer.isAccepted || false,
-                    comments: answer.comments?.map((comment: any) => ({
-                      id: Number(comment.id) || 0,
-                      content: comment.content,
-                      author: {
-                        id: comment.userId,
-                        name: comment.authorName || 'Unknown User',
-                        avatar: comment.authorAvatar || '',
+                  answers={answersData.answers.map((answer: any) => {
+                    // Try to parse as JSON, but handle HTML content gracefully
+                    let contentJson = null;
+                    if (typeof answer.content === 'string') {
+                      // Check if it's JSON (starts with '{' or '[') or HTML (contains '<')
+                      if (answer.content.trim().startsWith('{') || answer.content.trim().startsWith('[')) {
+                        try {
+                          contentJson = JSON.parse(answer.content);
+                        } catch (e) {
+                          // If parsing fails, leave as null - will use HTML rendering
+                          console.log('[QuestionDetail] Content is not valid JSON, using HTML rendering');
+                        }
+                      }
+                    } else {
+                      contentJson = answer.content;
+                    }
+                    
+                    return {
+                      id: answer.id,
+                      votes: answer.totalVotes || 0,
+                      content: answer.content,
+                      contentJson: contentJson,
+                      author: answer.author || {
+                        id: answer.authorId,
+                        name: answer.authorName || 'Unknown User',
+                        avatar: answer.authorAvatar || '',
                         reputation: 0,
                       },
-                      timeAgo: new Date(comment.createdAt).toLocaleString(),
-                      votes: comment.votes || 0,
-                    })) || [],
-                    userVote: answer.userVote,
-                  }))}
+                      timeAgo: new Date(answer.createdAt).toLocaleString(),
+                      isAccepted: answer.isAccepted || false,
+                      comments: answer.comments?.map((comment: any) => ({
+                        id: Number(comment.id) || 0,
+                        content: comment.content,
+                        author: {
+                          id: comment.userId,
+                          name: comment.authorName || 'Unknown User',
+                          avatar: comment.authorAvatar || '',
+                          reputation: 0,
+                        },
+                        timeAgo: new Date(comment.createdAt).toLocaleString(),
+                        votes: comment.votes || 0,
+                      })) || [],
+                      userVote: answer.userVote,
+                    };
+                  })}
                   totalAnswers={answersData.answers.length}
                   questionId={question.id}
                   onVote={handleAnswerVote}
@@ -417,7 +435,19 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
                   currentUserId={currentUserId}
                   canAcceptAnswers={canAcceptAnswers}
                 />
-              ) : null}
+              ) : !answersLoading && (
+                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center mb-6">
+                  <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    No answers yet
+                  </h3>
+                  <p className="text-gray-600">
+                    Be the first to answer this question!
+                  </p>
+                </div>
+              )}
 
               {/* Your Answer */}
               <YourAnswer

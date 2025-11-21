@@ -141,12 +141,9 @@ class ApiClient {
           name: error instanceof Error ? error.name : 'Unknown'
         })
         
-        // Session is invalid, redirect to sign in
-        if (typeof window !== 'undefined') {
-          const currentUrl = window.location.href
-          console.log('[API Client] 🔄 Session invalid - redirecting to sign in...')
-          window.location.href = `/api/auth/signin?callbackUrl=${encodeURIComponent(currentUrl)}`
-        }
+        // Don't auto-redirect here - let the calling code decide
+        // The request handler will check if user had auth token before deciding to redirect
+        console.log('[API Client] Token refresh failed - returning false')
         
         return false
       } finally {
@@ -269,15 +266,31 @@ class ApiClient {
       if (response.status === 401 && retryOn401 && typeof window !== 'undefined') {
         console.log('[API Client] 401 Unauthorized - attempting token refresh')
         
-        const refreshed = await this.refreshAccessToken()
-        if (refreshed) {
-          // Retry the request with new token (only once)
-          console.log('[API Client] Retrying request with new token')
-          return this.request<T>(endpoint, options, attempt, false)
+        // Check if user was actually logged in (had an auth header)
+        const hadAuthToken = !!headers['Authorization']
+        
+        if (hadAuthToken) {
+          // User was logged in but token expired - try refresh
+          const refreshed = await this.refreshAccessToken()
+          if (refreshed) {
+            // Retry the request with new token (only once)
+            console.log('[API Client] Retrying request with new token')
+            return this.request<T>(endpoint, options, attempt, false)
+          } else {
+            // Refresh failed, redirect to login
+            const apiError: ApiError = {
+              message: 'Authentication failed - please sign in again',
+              status: 401,
+              code: 'UNAUTHENTICATED',
+            }
+            throw apiError
+          }
         } else {
-          // Refresh failed, throw the 401 error
+          // User was not logged in - this is a public endpoint that requires auth
+          // Don't redirect, just throw the error
+          console.log('[API Client] 401 on unauthenticated request - not redirecting')
           const apiError: ApiError = {
-            message: 'Authentication failed - please sign in again',
+            message: 'Authentication required for this action',
             status: 401,
             code: 'UNAUTHENTICATED',
           }
@@ -397,13 +410,14 @@ export const mapPostToQuestion = (post: any): Question => {
   const title = extractTitle(fullContent);
   const contentBody = extractContentBody(fullContent);
   
-  // Debug: Check if userVote is present
+  // Debug: Check data mapping
   console.log('[mapPostToQuestion] Mapping post:', {
     id: post.id,
-    userVote: post.userVote,
     totalVotes: post.totalVotes,
-    upvotes: post.upvotes,
-    downvotes: post.downvotes,
+    answersCount: post.answersCount, // NEW: Should be answer count
+    commentsCount: post.commentsCount, // OLD: Was incorrectly used for answers
+    likesCount: post.likesCount,
+    userVote: post.userVote,
     isFavorited: post.isFavorited,
   });
   
@@ -426,7 +440,7 @@ export const mapPostToQuestion = (post: any): Question => {
     content: fullContent,
     excerpt: extractExcerpt(contentBody),
     votes: post.totalVotes !== undefined ? post.totalVotes : (post.likesCount || 0),
-    answers: post.commentsCount || 0,
+    answers: post.answersCount !== undefined ? post.answersCount : (post.commentsCount || 0), // Use answersCount if available, fallback to commentsCount for backward compatibility
     views: 0, // Backend doesn't track views yet
     tags: tags,
     timeAgo: formatTimeAgo(post.createdAt),

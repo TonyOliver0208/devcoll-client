@@ -20,6 +20,7 @@ export const useQuestionComments = (postId: string, params?: { page?: number; li
     enabled: !!postId,
     staleTime: 0,
     refetchOnMount: 'always' as const,
+    retry: false, // Don't retry on error - just show empty state
   })
 }
 
@@ -31,6 +32,7 @@ export const useAnswerComments = (answerId: string, params?: { page?: number; li
     enabled: !!answerId,
     staleTime: 0,
     refetchOnMount: 'always' as const,
+    retry: false, // Don't retry on error - just show empty state
   })
 }
 

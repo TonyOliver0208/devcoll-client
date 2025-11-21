@@ -342,7 +342,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     // Custom error page for authentication failures
     error: '/auth/error',
-    signIn: '/auth/signin', // Optional: Custom sign-in page
+    signIn: '/login', // Custom sign-in page
   },
   session: {
     strategy: "jwt",
