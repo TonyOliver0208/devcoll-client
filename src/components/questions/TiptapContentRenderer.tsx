@@ -12,7 +12,7 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
     return null;
   }
 
-  const renderNode = (node: any, key: number): ReactNode => {
+  const renderNode = (node: any, key: string | number): ReactNode => {
     if (!node) return null;
 
     switch (node.type) {
@@ -20,7 +20,7 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
         // Render paragraph children
         const paragraphChildren = node.content ? node.content : [];
         const renderedParagraphChildren = paragraphChildren
-          .map((child: any, i: number) => renderNode(child, i));
+          .map((child: any, i: number) => renderNode(child, `${key}-p-${i}`));
 
         // Don't render empty paragraphs
         if (renderedParagraphChildren.length === 0 || 
@@ -103,7 +103,7 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
         
         return (
           <HeadingComponent key={key}>
-            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, `${key}-h-${i}`)) : null}
           </HeadingComponent>
         );
 
@@ -127,28 +127,28 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
       case 'blockquote':
         return (
           <blockquote key={key} className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700 bg-gray-50 py-2 rounded-r">
-            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, `${key}-bq-${i}`)) : null}
           </blockquote>
         );
 
       case 'bulletList':
         return (
           <ul key={key} className="list-disc pl-6 my-4 space-y-1">
-            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, `${key}-ul-${i}`)) : null}
           </ul>
         );
 
       case 'orderedList':
         return (
           <ol key={key} className="list-decimal pl-6 my-4 space-y-1">
-            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, `${key}-ol-${i}`)) : null}
           </ol>
         );
 
       case 'listItem':
         return (
           <li key={key} className="leading-6">
-            {node.content ? node.content.map((child: any, i: number) => renderNode(child, i)) : null}
+            {node.content ? node.content.map((child: any, i: number) => renderNode(child, `${key}-li-${i}`)) : null}
           </li>
         );
 
@@ -174,7 +174,7 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
         if (node.content) {
           return (
             <div key={key}>
-              {node.content.map((child: any, i: number) => renderNode(child, i))}
+              {node.content.map((child: any, i: number) => renderNode(child, `${key}-d-${i}`))}
             </div>
           );
         }
@@ -185,7 +185,7 @@ const TiptapContentRenderer = ({ content, className = "" }: TiptapContentRendere
   try {
     return (
       <div className={`tiptap-content prose prose-sm max-w-none ${className}`}>
-        {content.content.map((node: any, i: number) => renderNode(node, i))}
+        {content.content.map((node: any, i: number) => renderNode(node, `root-${i}`))}
       </div>
     );
   } catch (error) {

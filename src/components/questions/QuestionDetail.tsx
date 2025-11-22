@@ -348,7 +348,7 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
                   votes: currentVotes.total,
                   userVote: currentVotes.userVote,
                   comments: questionCommentsData?.comments?.map((comment: any) => ({
-                    id: Number(comment.id) || 0,
+                    id: comment.id || `comment-${Math.random()}`,
                     content: comment.content,
                     author: {
                       id: comment.userId,
@@ -411,7 +411,7 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
                       timeAgo: new Date(answer.createdAt).toLocaleString(),
                       isAccepted: answer.isAccepted || false,
                       comments: answer.comments?.map((comment: any) => ({
-                        id: Number(comment.id) || 0,
+                        id: comment.id || `comment-${Math.random()}`,
                         content: comment.content,
                         author: {
                           id: comment.userId,

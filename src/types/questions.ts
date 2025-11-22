@@ -11,7 +11,7 @@ export interface User {
 }
 
 export interface Comment {
-  id: number;
+  id: number | string; // Support both numeric IDs (mock data) and UUID strings (API)
   content: string;
   author: User;
   timeAgo: string;
