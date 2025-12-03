@@ -5,10 +5,10 @@
  * Supports file uploads to Cloudinary via the media microservice.
  * 
  * @author DevColl Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import { apiClient } from './client';
+import { apiClient } from './base-service';
 
 export interface UploadImageResponse {
   id: string;
@@ -49,26 +49,16 @@ export const uploadImage = async (file: File): Promise<UploadImageResponse> => {
     // Create FormData for multipart upload
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('type', 'image');
 
     // Upload to media service
-    const response = await apiClient.post<UploadImageResponse>(
-      '/media/upload',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 60000, // 60 seconds for large uploads
-      }
-    );
+    const response = await apiClient.post<UploadImageResponse>('/media/upload', formData);
 
-    return response.data;
+    return response;
   } catch (error: any) {
     console.error('Media Service: Upload failed:', error);
     
-    if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
-    } else if (error.message) {
+    if (error.message) {
       throw new Error(error.message);
     } else {
       throw new Error('Failed to upload image');
@@ -103,10 +93,10 @@ export const deleteImage = async (mediaId: string): Promise<void> => {
 export const getMedia = async (mediaId: string): Promise<UploadImageResponse> => {
   try {
     const response = await apiClient.get<UploadImageResponse>(`/media/${mediaId}`);
-    return response.data;
+    return response;
   } catch (error: any) {
     console.error('Media Service: Get media failed:', error);
-    throw new Error(error.response?.data?.message || 'Failed to get media');
+    throw new Error(error.message || 'Failed to get media');
   }
 };
 
@@ -132,10 +122,10 @@ export const getUserMedia = async (
       `/media/user?${params.toString()}`
     );
     
-    return response.data;
+    return response;
   } catch (error: any) {
     console.error('Media Service: Get user media failed:', error);
-    throw new Error(error.response?.data?.message || 'Failed to get user media');
+    throw new Error(error.message || 'Failed to get user media');
   }
 };
 

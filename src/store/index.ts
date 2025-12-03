@@ -4,6 +4,8 @@ export { useQuestionsStore } from './questionsStore';
 export { useTagsStore } from './tagsStore';
 export { useUserInteractionsStore } from './userInteractionsStore';
 export { useSavedItemsStore, useSavedItems } from './savedItemsStore';
+export { useEditorStore } from './useEditorStore';
+export { useNavigationStore } from './useNavigationStore';
 
 // Store types
 export type {

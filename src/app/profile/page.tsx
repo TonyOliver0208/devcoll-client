@@ -100,7 +100,7 @@ export default function Profile() {
     ) {
       try {
         setIsLoadingFavorites(true);
-        const { questionsApi } = await import('@/services/questions.api');
+        const { questionsService: questionsApi } = await import('@/services');
         const response = await questionsApi.getUserFavorites({
           page: 1,
           limit: 100, // Get all favorites for now
@@ -147,7 +147,7 @@ export default function Profile() {
 
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="fixed inset-0 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
       </div>
     );
@@ -155,7 +155,7 @@ export default function Profile() {
 
   if (!session) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+      <div className="fixed inset-0 flex flex-col items-center justify-center text-center px-4">
         <h1 className="text-2xl font-bold mb-4">
           Please log in to view your profile
         </h1>
@@ -396,8 +396,8 @@ function SavesSection({
 
     setIsRemoving(true);
     try {
-      const { questionsApi } = await import('@/services/questions.api');
-      await questionsApi.favoriteQuestion(selectedItemToRemove.questionId, selectedItemToRemove.listName);
+      const { questionsService } = await import('@/services');
+      await questionsService.favoriteQuestion(selectedItemToRemove.questionId, selectedItemToRemove.listName);
       
       // Close dialog and refresh list
       setShowUnsaveConfirm(false);

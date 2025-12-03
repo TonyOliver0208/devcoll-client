@@ -18,6 +18,9 @@ import {
 import NotificationDropdown from "@/components/shared/NotificationDropdown";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useNotificationSimulator } from "@/lib/notificationSimulator";
+import { useNavigationStore } from "@/store/useNavigationStore";
+import { useRouter, usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -78,14 +81,33 @@ function Logo() {
 }
 
 function Navigation() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { setIsEditorMode, setPreviousPath } = useNavigationStore();
+  
+  const isEditorPath = pathname?.startsWith('/editor');
+  
+  const handleCanvaClick = () => {
+    if (!isEditorPath) {
+      setPreviousPath(pathname || '/');
+    }
+    setIsEditorMode(true);
+    router.push('/editor');
+  };
+
   return (
     <nav className="hidden md:flex items-center">
-      <Link
-        href="/"
-        className="flex items-center px-3 py-4 text-sm text-gray-700 hover:bg-gray-100 rounded border-b-2 border-[#F48024] bg-orange-50 font-bold"
+      <button
+        onClick={handleCanvaClick}
+        className={cn(
+          "flex items-center px-3 py-4 text-sm rounded transition-all duration-200",
+          isEditorPath
+            ? "text-gray-700 border-b-2 border-[#F48024] bg-orange-50 font-bold"
+            : "text-gray-600 hover:bg-gray-100"
+        )}
       >
-        Canva
-      </Link>
+        Design Studio
+      </button>
       <button className="flex items-center px-3 py-4 text-sm text-gray-600 hover:bg-gray-100 rounded">
         Live Code
       </button>

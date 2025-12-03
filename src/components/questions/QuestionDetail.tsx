@@ -120,8 +120,8 @@ const QuestionDetail = ({ question, currentUserId }: QuestionDetailProps) => {
     }));
     
     try {
-      const { questionsApi } = await import('@/services/questions.api');
-      const result = await questionsApi.voteQuestion(question.id.toString(), type);
+      const { questionsService } = await import('@/services');
+      const result = await questionsService.voteQuestion(question.id.toString(), type);
       
       console.log('[QuestionDetail] Vote result from server:', result);
       

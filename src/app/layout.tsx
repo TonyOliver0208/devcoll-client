@@ -4,11 +4,13 @@ import NextAuthProvider from "@/providers/nextauth-provider";
 import QueryProvider from "@/providers/query-provider";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { AuthStatusDebug } from "@/components/auth/SessionInitializer";
+import { LayoutController } from "@/components/layout/LayoutController";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "DevColl - Forum For Dev Platform",
+  title: "DevColl - Forum & Design Platform",
   description:
-    "Find answers to your technical questions and help others answer theirs.",
+    "Find answers to your technical questions, help others, and create amazing designs.",
 };
 
 export default function RootLayout({
@@ -22,7 +24,10 @@ export default function RootLayout({
         <ErrorBoundary>
           <NextAuthProvider>
             <QueryProvider>
-              {children}
+              <LayoutController>
+                {children}
+              </LayoutController>
+              <Toaster position="top-center" richColors />
               <AuthStatusDebug />
             </QueryProvider>
           </NextAuthProvider>

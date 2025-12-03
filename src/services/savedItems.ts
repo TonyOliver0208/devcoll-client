@@ -5,10 +5,10 @@
  * Handles all API communication with the microservice backend.
  * 
  * @author DevColl Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
-import { apiClient } from './client';
+import { apiClient } from './base-service';
 
 // TypeScript interfaces for API requests/responses
 export interface SavedItem {
@@ -84,7 +84,7 @@ class SavedItemsService {
   async getSavedLists(): Promise<SavedList[]> {
     try {
       const response = await apiClient.get(`${this.basePath}/saved-lists`);
-      return response.data.lists || response.data;
+      return response.lists || response;
     } catch (error) {
       console.error('SavedItemsService: Failed to fetch saved lists:', error);
       throw error;
@@ -97,7 +97,7 @@ class SavedItemsService {
   async getListItems(listId: string): Promise<SavedItem[]> {
     try {
       const response = await apiClient.get(`${this.basePath}/saved-lists/${listId}/items`);
-      return response.data.items || response.data;
+      return response.items || response;
     } catch (error) {
       console.error(`SavedItemsService: Failed to fetch items for list ${listId}:`, error);
       throw error;
@@ -110,7 +110,7 @@ class SavedItemsService {
   async saveItem(item: SaveItemRequest): Promise<SavedItem> {
     try {
       const response = await apiClient.post(`${this.basePath}/saved-items`, item);
-      return response.data.item || response.data;
+      return response.item || response;
     } catch (error) {
       console.error('SavedItemsService: Failed to save item:', error);
       throw error;
@@ -147,7 +147,7 @@ class SavedItemsService {
   async createList(data: CreateSavedListRequest): Promise<SavedList> {
     try {
       const response = await apiClient.post(`${this.basePath}/saved-lists`, data);
-      return response.data.list || response.data;
+      return response.list || response;
     } catch (error) {
       console.error('SavedItemsService: Failed to create list:', error);
       throw error;
@@ -172,7 +172,7 @@ class SavedItemsService {
   async updateList(listId: string, data: Partial<CreateSavedListRequest>): Promise<SavedList> {
     try {
       const response = await apiClient.put(`${this.basePath}/saved-lists/${listId}`, data);
-      return response.data.list || response.data;
+      return response.list || response;
     } catch (error) {
       console.error(`SavedItemsService: Failed to update list ${listId}:`, error);
       throw error;
@@ -185,7 +185,7 @@ class SavedItemsService {
   async getAllSavedItems(): Promise<SavedItem[]> {
     try {
       const response = await apiClient.get(`${this.basePath}/saved-items`);
-      return response.data.items || response.data;
+      return response.items || response;
     } catch (error) {
       console.error('SavedItemsService: Failed to fetch all saved items:', error);
       throw error;

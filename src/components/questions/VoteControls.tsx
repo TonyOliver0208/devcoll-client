@@ -113,7 +113,7 @@ const VoteControls = ({
     setLocalIsFavorited(!localIsFavorited);
     
     try {
-      const { questionsApi } = await import('@/services/questions.api');
+      const { questionsService: questionsApi } = await import('@/services');
       
       // Toggle favorite on backend
       const result = await questionsApi.favoriteQuestion(questionData.id, selectedList);

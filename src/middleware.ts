@@ -12,7 +12,8 @@ export default auth((req) => {
   const isProtectedRoute = nextUrl.pathname.startsWith('/questions/add') ||
                           nextUrl.pathname.startsWith('/profile') ||
                           nextUrl.pathname.startsWith('/settings') ||
-                          nextUrl.pathname.startsWith('/dashboard');
+                          nextUrl.pathname.startsWith('/dashboard') ||
+                          nextUrl.pathname.startsWith('/editor');
 
   // Redirect logged-in users away from auth pages
   if (isLoggedIn && isAuthRoute) {
@@ -37,6 +38,7 @@ export const config = {
     '/forgot-password',
     '/questions/add',
     '/questions/:path*/edit', // Only protect edit pages
-    '/dashboard/:path*'
+    '/dashboard/:path*',
+    '/editor/:path*' // Protect design studio routes
   ]
 };
