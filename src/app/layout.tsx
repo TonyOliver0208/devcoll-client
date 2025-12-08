@@ -28,7 +28,7 @@ export default function RootLayout({
                 {children}
               </LayoutController>
               <Toaster position="top-center" richColors />
-              <AuthStatusDebug />
+              {/* <AuthStatusDebug /> */}
             </QueryProvider>
           </NextAuthProvider>
         </ErrorBoundary>

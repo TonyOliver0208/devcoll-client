@@ -31,6 +31,14 @@ export const tagsService = {
   getPopularTags: (limit = 5): Promise<{ tags: Tag[]; total: number }> => {
     return apiClient.get(`/posts/tags/popular?limit=${limit}`)
   },
+  
+  /**
+   * Get hot posts (most upvoted in last 7 days)
+   * Maps to GET /api/v1/posts/hot
+   */
+  getHotPosts: (limit = 5): Promise<any> => {
+    return apiClient.get(`/posts/hot?limit=${limit}`)
+  },
     
   /**
    * Get posts by tag name
